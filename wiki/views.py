@@ -3,6 +3,8 @@ from django.db.models import Q
 from django.http import JsonResponse
 from .models import Post
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from .models import PostImage
 
 @login_required
 def post_create(request):
@@ -40,3 +42,13 @@ def post_list(request):
         
     return render(request, 'wiki/list.html', {'posts': posts, 'query': query})
 #################################################################################
+
+
+@csrf_exempt # 에디터의 비동기 업로드를 위해 임시 허용
+def image_upload(request):
+    if request.method == 'POST' and request.FILES.get('image'):
+        img_file = request.FILES['image']
+        img_instance = PostImage.objects.create(image=img_file)
+        # 저장된 이미지의 절대 경로를 리턴
+        return JsonResponse({'url': img_instance.image.url})
+    return JsonResponse({'error': 'Invalid request'}, status=400)

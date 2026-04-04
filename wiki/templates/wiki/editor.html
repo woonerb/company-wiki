@@ -36,8 +36,13 @@
 <script>
     const { Editor } = Tiptap;
     const editor = new Editor({
-        element: document.querySelector('#editor'),
-        extensions: [Tiptap.StarterKit, Tiptap.Color, Tiptap.TextStyle],
+    element: document.querySelector('#editor'),
+    extensions: [
+        Tiptap.StarterKit, 
+        Tiptap.Color, 
+        Tiptap.TextStyle,
+        Tiptap.Image, // <-- 이 한 줄이 이미지를 화면에 그리게 해줍니다.
+    ],
         content: '<p>업무 노하우를 여기에 기록하세요...</p>',
     });
 
@@ -45,5 +50,51 @@
     document.getElementById('wiki-form').onsubmit = function() {
         document.getElementById('hidden-content').value = editor.getHTML();
     };
+
+    // 'editor'라는 id를 가진 div에서 일어나는 붙여넣기 이벤트를 감시합니다.
+    document.querySelector('#editor').addEventListener('paste', async (event) => {
+        // 1. 클립보드 데이터를 가져옵니다.
+        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+        
+        for (const item of items) {
+            // 2. 만약 데이터가 '이미지'라면?
+            if (item.type.indexOf('image') !== -1) {
+                // 브라우저의 기본 붙여넣기 동작을 막습니다 (우리가 직접 처리할 것이므로)
+                event.preventDefault();
+
+                const file = item.getAsFile(); // 이미지 파일 추출
+                const formData = new FormData();
+                formData.append('image', file); // 'image'라는 이름으로 파일을 담습니다.
+
+                try {
+                    // 3. 서버(Django)의 이미지 업로드 주소로 보냅니다.
+                    const response = await fetch('/upload-image/', {
+                        method: 'POST',
+                        body: formData,
+                        // CSRF 토큰 처리가 필요할 수 있습니다 (아래 팁 참고)
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    // 4. 서버가 저장 후 이미지의 주소(URL)를 돌려주면 에디터에 삽입합니다.
+                    if (data.url) {
+                        editor.chain().focus().setImage({ src: data.url }).run();
+                    }
+                } catch (error) {
+                    console.error("이미지 업로드 실패:", error);
+                    alert("이미지 업로드 중 오류가 발생했습니다.");
+                }
+            }
+        }
+    });
+
 </script>
+
+
+
+
+
 {% endblock %}

@@ -20,3 +20,7 @@ class Post(models.Model):
         return self.title
     
 
+class PostImage(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images', null=True, blank=True)
+    image = models.ImageField(upload_to='wiki/post_images/%Y/%m/%d/')
+    created_at = models.DateTimeField(auto_now_add=True)
