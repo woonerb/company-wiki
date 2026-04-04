@@ -20,6 +20,15 @@
         <button type="submit" style="margin-top: 20px; padding: 12px 30px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; float: right;">
             지식 등록하기
         </button>
+
+        {% csrf_token %}
+        <div class="file-upload-section" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc;">
+            <label>📎 관련 매뉴얼/파일 첨부:</label>
+            <input type="file" name="attachment" class="form-control">
+        </div>
+
+        <button type="submit" class="btn btn-success mt-3 float-right">지식 등록하기</button>
+
     </form>
 </div>
 

@@ -9,5 +9,14 @@ class Post(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    ######이미지 업로드 기능 구현###############################################################
+    # 이미지 업로드는 Tiptap 에디터 내부에 삽입하는 방식이 더 직관적이지만, 
+    # 우선 별도 첨부 기능을 추가합니다.
+    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True)
+    #########################################################################################
+
+
     def __str__(self):
         return self.title
+    
+

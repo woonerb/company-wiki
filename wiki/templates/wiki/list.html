@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>📚 사내 지식 아카이브</h2>
+        <a href="{% url 'post_create' %}" class="btn btn-primary">+ 지식 등록</a>
+    </div>
+
+    <form method="GET" action="{% url 'post_list' %}" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="제목, 내용, 작성자 검색..." value="{{ query|default:'' }}">
+            <button class="btn btn-outline-secondary" type="submit">검색</button>
+        </div>
+    </form>
+
+    <table class="table table-hover" style="border-top: 2px solid #333;">
+        <thead class="table-light">
+            <tr>
+                <th style="width: 10%">번호</th>
+                <th style="width: 50%">제목</th>
+                <th style="width: 15%">작성자</th>
+                <th style="width: 15%">작성일</th>
+                <th style="width: 10%">첨부</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for post in posts %}
+            <tr>
+                <td>{{ post.id }}</td>
+                <td>
+                    <a href="{% url 'post_detail' post.pk %}" style="text-decoration: none; color: #333; font-weight: 500;">
+                        {{ post.title }}
+                    </a>
+                </td>
+                <td>{{ post.author.username }}</td>
+                <td>{{ post.created_at|date:"Y-m-d" }}</td>
+                <td>{% if post.attachment %}📎{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center py-5">검색 결과가 없거나 등록된 지식이 없습니다.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
