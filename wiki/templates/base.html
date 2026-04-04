@@ -4,127 +4,98 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wiki Workspace</title>
-    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
             --nav-bg: #002147;
-            --nav-text: #FFFFFF;
+            --sidebar-bg: #F4F5F7;
+            --sidebar-hover: #EBECF0;
             --primary-blue: #0052CC;
-            --bg-body: #FFFFFF;
             --text-main: #172B4D;
-            --max-width: 1080px;
+            --border-color: #DFE1E6;
         }
 
-        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; color: var(--text-main); display: flex; flex-direction: column; height: 100vh; }
 
-        body {
-            margin: 0; padding: 0;
-            font-family: 'Pretendard', sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            line-height: 1.6;
+        /* 상단 네비게이션 */
+        .navbar { background-color: var(--nav-bg); height: 50px; display: flex; align-items: center; padding: 0 20px; color: white; position: sticky; top: 0; z-index: 1001; }
+        .navbar-brand { color: white; text-decoration: none; font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+        
+        /* 전체 레이아웃 (사이드바 + 본문) */
+        .app-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* 왼쪽 사이드바 */
+        .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-section { padding: 20px 10px 10px 15px; }
+        .sidebar-title { font-size: 0.75rem; font-weight: 700; color: #6B778C; text-transform: uppercase; margin-bottom: 10px; }
+        
+        .nav-item { 
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px; 
+            text-decoration: none; color: #42526E; font-size: 0.9rem; border-radius: 4px; transition: 0.2s; margin-bottom: 2px;
         }
+        .nav-item:hover { background: var(--sidebar-hover); color: var(--primary-blue); }
+        .nav-item.active { background: #DEEBFF; color: var(--primary-blue); font-weight: 600; }
+        .nav-item i { width: 16px; text-align: center; font-size: 0.85rem; }
 
-        .navbar {
-            background-color: var(--nav-bg);
-            height: 56px;
-            display: flex;
-            justify-content: center;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
+        /* 트리 구조 (카테고리) */
+        .tree-item { padding-left: 25px; font-size: 0.85rem; }
 
-        .nav-inner {
-            width: 100%;
-            max-width: var(--max-width);
-            display: flex;
-            align-items: center;
-            padding: 0 40px;
-        }
+        /* 오른쪽 메인 컨텐츠 */
+        .main-content { flex: 1; overflow-y: auto; background: white; }
+        .content-inner { max-width: 900px; margin: 0 auto; padding: 60px 50px; animation: fadeIn 0.4s; }
 
-        .navbar-brand {
-            color: var(--nav-text);
-            text-decoration: none;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .nav-links { margin-left: 32px; display: flex; gap: 20px; }
-        .nav-link-item { color: rgba(255, 255, 255, 0.85); text-decoration: none; font-size: 0.9rem; }
-
-        .nav-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
-
-        .mypage-btn {
-                color: rgba(255, 255, 255, 0.9);
-                text-decoration: none;
-                font-size: 0.85rem;
-                font-weight: 500;
-                padding: 6px 12px;
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 4px;
-                transition: all 0.2s;
-            }
-            
-            .mypage-btn:hover {
-                background: rgba(255, 255, 255, 0.1);
-                color: #FFFFFF;
-                border-color: #FFFFFF;
-            }
-
-        .main-layout { display: flex; justify-content: center; min-height: calc(100vh - 150px); }
-        .content-container { width: 100%; max-width: var(--max-width); padding: 60px 40px; }
-
-        footer {
-            max-width: var(--max-width);
-            margin: 40px auto 0;
-            padding: 40px;
-            border-top: 1px solid #DFE1E6;
-            text-align: center;
-            color: #6B778C;
-            font-size: 0.85rem;
-        }
+        /* 검색창 (상단바 배치) */
+        .search-box { margin-left: 30px; flex: 1; max-width: 300px; position: relative; }
+        .search-box input { width: 100%; background: rgba(255,255,255,0.15); border: none; border-radius: 4px; padding: 5px 10px 5px 30px; color: white; font-size: 0.85rem; }
+        .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.5; }
     </style>
 </head>
 <body>
-
     <nav class="navbar">
-        <div class="nav-inner">
-            <a href="{% url 'post_list' %}" class="navbar-brand">
-                <i class="fa-solid fa-layer-group"></i> WIKI WORKSPACE
-            </a>
-            
-            <div class="nav-links">
-                <a href="{% url 'post_list' %}" class="nav-link-item">최근 문서</a>
-            </div>
-
-            <div class="nav-right">
-                {% if user.is_authenticated %}
-                    <a href="/accounts/profile/" class="mypage-btn">
-                        <i class="fa-regular fa-circle-user"></i> 마이페이지
-                    </a>
-                {% else %}
-                    <a href="/admin/" class="nav-link-item">로그인</a>
-                {% endif %}
-            </div>
+        <a href="{% url 'post_list' %}" class="navbar-brand"><i class="fa-solid fa-layer-group"></i> WIKI</a>
+        <div class="search-box">
+            <form action="{% url 'post_list' %}" method="GET">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="q" placeholder="빠른 검색..." value="{{ search_query|default:'' }}">
+            </form>
+        </div>
+        <div style="margin-left: auto; display: flex; gap: 15px; align-items: center;">
+            <a href="{% url 'post_create' %}" style="color: white; text-decoration: none;"><i class="fa-solid fa-circle-plus"></i> 생성</a>
+            {% if user.is_authenticated %}
+                <a href="#" style="color: white; text-decoration: none; font-size: 0.85rem;"><i class="fa-regular fa-user"></i> {{ user.username }}</a>
+            {% endif %}
         </div>
     </nav>
 
-    <div class="main-layout">
-        <main class="content-container">
-            {% block content %}
-            {% endblock %}
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">메뉴</div>
+                <a href="{% url 'post_list' %}" class="nav-item {% if not request.GET.category %}active{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 최근 문서
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fa-solid fa-star"></i> 즐겨찾기
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">지식 트리</div>
+                <a href="{% url 'post_list' %}?category=it" class="nav-item tree-item">IT / 개발</a>
+                <a href="{% url 'post_list' %}?category=hr" class="nav-item tree-item">인사 / 복지</a>
+                <a href="{% url 'post_list' %}?category=notice" class="nav-item tree-item">공지사항</a>
+                </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="content-inner">
+                {% block content %}{% endblock %}
+            </div>
         </main>
     </div>
-
-    <footer>
-        &copy; 2026 Wiki Workspace
-    </footer>
-
 </body>
 </html>

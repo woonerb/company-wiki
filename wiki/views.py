@@ -110,3 +110,24 @@ def suggest_tags(request):
             return JsonResponse({'tags': []})
 
 # --- 게시글 본문의 키워드를 기반으로 해시태그 단어 추천 ---        
+
+
+# --- 검색 기능 구현 ---        
+def post_list(request):
+    search_query = request.GET.get('q', '')  # URL에서 'q' 파라미터를 가져옴
+    posts = Post.objects.all().order_by('-created_at')
+
+    if search_query:
+        # 제목(title) 또는 본문(content) 또는 태그(tags)에 검색어가 포함된 경우 필터링
+        posts = posts.filter(
+            Q(title__icontains=search_query) | 
+            Q(content__icontains=search_query) |
+            Q(tags__icontains=search_query)
+        ).distinct()
+
+    return render(request, 'wiki/post_list.html', {
+        'posts': posts,
+        'search_query': search_query
+    })
+# --- 검색 기능 구현 ---        
+

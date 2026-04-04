@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="margin-bottom: 35px;">
+    <h1 style="font-size: 2.2rem; font-weight: 700; color: #172B4D;">
+        {% if search_query %}
+            '{{ search_query }}' 검색 결과
+        {% elif request.GET.category %}
+            {{ request.GET.category|upper }} 문서
+        {% else %}
+            최근 업데이트 문서
+        {% endif %}
+    </h1>
+</div>
+
+<div class="wiki-list" style="display: flex; flex-direction: column; gap: 12px;">
+    {% for post in posts %}
+    <a href="{% url 'post_detail' post.pk %}" style="text-decoration: none; color: inherit; display: block; padding: 16px; border: 1px solid #DFE1E6; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.background='#F4F5F7'" onmouseout="this.style.background='white'">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <span style="font-size: 0.7rem; color: #0052CC; font-weight: 700; background: #DEEBFF; padding: 2px 6px; border-radius: 3px;">{{ post.get_category_display }}</span>
+                <h3 style="margin: 8px 0 4px 0; font-size: 1.2rem; color: #172B4D;">{{ post.title }}</h3>
+                <p style="margin: 0; color: #6B778C; font-size: 0.9rem;">{{ post.content|striptags|truncatechars:100 }}</p>
+            </div>
+            <div style="text-align: right; color: #888; font-size: 0.8rem;">
+                <b>{{ post.author }}</b><br>
+                {{ post.created_at|date:"Y.m.d" }}
+            </div>
+        </div>
+    </a>
+    {% empty %}
+    <div style="text-align: center; padding: 100px 0; color: #888;">
+        <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+        <p>문서가 존재하지 않습니다.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
