@@ -1,201 +1,105 @@
 {% extends "base.html" %}
 {% block content %}
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<style>
-    :root {
-        --primary-color: #0052CC; /* Confluence 메인 블루 */
-        --text-main: #172B4D;
-        --text-sub: #6B778C;
-        --bg-gray: #F4F5F7;
-        --border-color: #DFE1E6;
-    }
-
-    body { 
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; 
-        background-color: white; /* 배경을 화이트로 하여 문서 집중도 향상 */
-        color: var(--text-main);
-        margin: 0;
-    }
-
-    /* 상단 내비게이션 바가 있다면 그 아래 간격 */
-    .wiki-wrapper {
-        max-width: 980px;
-        margin: 0 auto;
-        padding: 60px 40px;
-    }
-
-    /* 카테고리 & 타이틀 */
-    .post-header { margin-bottom: 40px; }
-    
-    .breadcrumb {
-        font-size: 0.9rem;
-        color: var(--text-sub);
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .post-title {
-        font-size: 2.8rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        margin: 0 0 20px 0;
-        color: var(--text-main);
-    }
-
-    .post-author-info {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding-bottom: 30px;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .author-avatar {
-        width: 36px;
-        height: 36px;
-        background: var(--primary-color);
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 0.9rem;
-    }
-
-    .meta-text { font-size: 0.95rem; color: var(--text-sub); }
-    .meta-text b { color: var(--text-main); margin-right: 10px; }
-
-    /* 본문 콘텐츠 스타일링 (Confluence 가독성) */
-    .wiki-content-area {
-        margin-top: 40px;
-        font-size: 1.15rem;
-        line-height: 1.7;
-        color: #253858;
-    }
-
-    /* Quill 내부 요소 커스텀 */
-    .ql-editor { padding: 0 !important; }
-    .ql-editor p { margin-bottom: 1.2em; }
-    .ql-editor h1, .ql-editor h2, .ql-editor h3 { 
-        margin-top: 1.5em; 
-        margin-bottom: 0.5em; 
-        color: var(--text-main); 
-    }
-    .ql-editor img { 
-        border-radius: 4px; 
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
-        margin: 20px 0; 
-    }
-    
-    /* 인용구 스타일 */
-    .ql-editor blockquote {
-        border-left: 4px solid var(--border-color);
-        padding-left: 20px;
-        color: var(--text-sub);
-        font-size: 1.2rem;
-        margin: 30px 0;
-    }
-
-    /* 첨부파일 영역 */
-    .attachment-box {
-        margin-top: 60px;
-        padding: 20px;
-        background: var(--bg-gray);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-    .attachment-box i { font-size: 1.5rem; color: var(--text-sub); }
-    .attachment-link { 
-        text-decoration: none; 
-        color: var(--primary-color); 
-        font-weight: 600; 
-    }
-
-    /* 하단 태그 */
-    .footer-tags { margin-top: 40px; display: flex; gap: 8px; flex-wrap: wrap; }
-    .tag-pill {
-        background: #EBECF0;
-        color: #42526E;
-        padding: 4px 12px;
-        border-radius: 3px; /* Confluence는 약간 각진 느낌 */
-        font-size: 0.85rem;
-        text-decoration: none;
-        font-weight: 500;
-    }
-    .tag-pill:hover { background: #DFE1E6; }
-
-    /* 플로팅 목록 버튼 */
-    .back-to-list {
-        position: fixed;
-        bottom: 40px;
-        right: 40px;
-        background: white;
-        border: 1px solid var(--border-color);
-        padding: 12px 20px;
-        border-radius: 50px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        text-decoration: none;
-        color: var(--text-main);
-        font-weight: 600;
-        transition: all 0.2s;
-    }
-    .back-to-list:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
-</style>
-
-<div class="wiki-wrapper">
-    <header class="post-header">
-        <div class="breadcrumb">
-            <i class="fa-solid fa-folder-open"></i> 
-            <span>Spaces</span> 〉 <span>{{ post.get_category_display }}</span>
+<article class="wiki-post">
+    <header class="post-header" style="margin-bottom: 40px; border-bottom: 1px solid #DFE1E6; padding-bottom: 30px;">
+        <div class="breadcrumb" style="font-size: 0.85rem; color: #6B778C; margin-bottom: 15px;">
+            <span>Spaces</span> <i class="fa-solid fa-angle-right" style="font-size: 0.7rem; margin: 0 5px;"></i> 
+            <span style="font-weight: 600; color: #0052CC;">{{ post.get_category_display }}</span>
         </div>
-        <h1 class="post-title">{{ post.title }}</h1>
         
-        <div class="post-author-info">
-            <div class="author-avatar">{{ post.author|slice:":1"|upper }}</div>
-            <div class="meta-text">
-                Created by <b>{{ post.author }}</b> 
-                <span style="margin: 0 5px;">•</span> 
-                {{ post.created_at|date:"Y년 m월 d일" }}
+        <h1 style="font-size: 2.5rem; font-weight: 700; color: #172B4D; margin: 0 0 20px 0; line-height: 1.2;">
+            {{ post.title }}
+        </h1>
+
+        <div class="post-meta" style="display: flex; align-items: center; gap: 12px;">
+            <div class="author-avatar" style="width: 32px; height: 32px; background: #0052CC; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem;">
+                {{ post.author|slice:":1"|upper }}
+            </div>
+            <div style="font-size: 0.9rem; color: #6B778C;">
+                Created by <b style="color: #172B4D;">{{ post.author }}</b> 
+                <span style="margin: 0 8px;">•</span> 
+                {{ post.created_at|date:"Y년 m월 d일 H:i" }}
             </div>
         </div>
     </header>
 
-    <main class="wiki-content-area ql-snow">
-        <div class="ql-editor">
+    <main class="wiki-content ql-snow" style="min-height: 400px;">
+        <div class="ql-editor" style="padding: 0; font-size: 1.1rem; line-height: 1.8; color: #253858;">
             {{ post.content|safe }}
         </div>
     </main>
 
-    {% if post.attachment %}
-    <div class="attachment-box">
-        <i class="fa-solid fa-paperclip"></i>
-        <div>
-            <div style="font-size: 0.8rem; color: var(--text-sub);">Attached File</div>
-            <a href="{{ post.attachment.url }}" class="attachment-link" download>{{ post.attachment.name }}</a>
-        </div>
-    </div>
-    {% endif %}
-
     {% if post.tags %}
-    <div class="footer-tags">
+    <div class="post-tags" style="margin-top: 50px; display: flex; gap: 8px; flex-wrap: wrap;">
         {% for tag in post.tags.split %}
-            <a href="{% url 'post_list_by_tag' tag %}" class="tag-pill">#{{ tag }}</a>
+            <span style="background: #EBECF0; color: #42526E; padding: 4px 10px; border-radius: 3px; font-size: 0.8rem; font-weight: 500;">
+                #{{ tag }}
+            </span>
         {% endfor %}
     </div>
     {% endif %}
-</div>
 
-<a href="{% url 'post_list' %}" class="back-to-list">
-    <i class="fa-solid fa-arrow-left"></i> 목록으로
-</a>
+    <section class="comment-section" style="margin-top: 80px; border-top: 1px solid #DFE1E6; padding-top: 40px;">
+        <h3 style="font-size: 1.3rem; color: #172B4D; margin-bottom: 30px;">
+            댓글 <span style="color: #6B778C; font-weight: normal; margin-left: 5px;">{{ post.comments.count }}</span>
+        </h3>
+
+        {% if user.is_authenticated %}
+        <form method="POST" style="margin-bottom: 50px; display: flex; gap: 15px;">
+            {% csrf_token %}
+            <div style="width: 36px; height: 36px; background: #0052CC; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0;">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <div style="flex: 1;">
+                <textarea name="content" placeholder="의견을 남겨주세요..." required 
+                    style="width: 100%; border: 1px solid #DFE1E6; border-radius: 4px; padding: 12px; font-family: inherit; resize: vertical; min-height: 90px; margin-bottom: 10px; outline-color: #4C9AFF;"></textarea>
+                <button type="submit" style="background: #0052CC; color: white; border: none; padding: 10px 20px; border-radius: 3px; font-weight: 600; cursor: pointer; float: right; transition: 0.2s;" onmouseover="this.style.background='#0065FF'" onmouseout="this.style.background='#0052CC'">
+                    댓글 등록
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div style="background: #F4F5F7; padding: 20px; border-radius: 6px; text-align: center; margin-bottom: 40px;">
+            <p style="margin: 0; color: #6B778C; font-size: 0.9rem;">댓글을 남기려면 <a href="/admin/" style="color: #0052CC; text-decoration: none; font-weight: 600;">로그인</a>이 필요합니다.</p>
+        </div>
+        {% endif %}
+
+        <div class="comments-list" style="display: flex; flex-direction: column; gap: 30px; clear: both;">
+            {% for comment in post.comments.all %}
+            <div class="comment-item" style="display: flex; gap: 15px;">
+                <div style="width: 36px; height: 36px; background: #EBECF0; color: #42526E; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0;">
+                    {{ comment.author.username|slice:":1"|upper }}
+                </div>
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 6px;">
+                        <strong style="font-size: 0.95rem; color: #172B4D;">{{ comment.author.username }}</strong>
+                        <span style="font-size: 0.8rem; color: #6B778C; margin-left: 10px;">{{ comment.created_at|date:"Y.m.d H:i" }}</span>
+                    </div>
+                    <div style="font-size: 1rem; color: #253858; line-height: 1.6; white-space: pre-wrap;">{{ comment.content }}</div>
+                    
+                    <div style="margin-top: 10px; display: flex; gap: 15px;">
+                        <button style="background: none; border: none; color: #6B778C; font-size: 0.8rem; cursor: pointer; padding: 0; font-weight: 500;">좋아요</button>
+                        <button style="background: none; border: none; color: #6B778C; font-size: 0.8rem; cursor: pointer; padding: 0; font-weight: 500;">답글</button>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 40px 0; color: #C1C7D0;">
+                <i class="fa-regular fa-comments" style="font-size: 2.5rem; margin-bottom: 15px; display: block;"></i>
+                <p style="font-size: 0.95rem;">아직 등록된 댓글이 없습니다.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div style="margin-top: 60px; text-align: right;">
+        <a href="{% url 'post_list' %}" style="text-decoration: none; color: #6B778C; font-size: 0.9rem; font-weight: 600; padding: 10px 20px; border: 1px solid #DFE1E6; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#F4F5F7'" onmouseout="this.style.background='white'">
+            <i class="fa-solid fa-arrow-left"></i> 목록으로
+        </a>
+    </div>
+</article>
 
 {% endblock %}

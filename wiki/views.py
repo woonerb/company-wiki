@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from .models import Post, Comment
 from django.db.models import Q
 from django.http import JsonResponse
-from .models import Post
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from .models import PostImage
@@ -131,3 +131,19 @@ def post_list(request):
     })
 # --- 검색 기능 구현 ---        
 
+# --- 댓글 기능 구현 ---        
+def post_detail(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+    
+    if request.method == "POST": # 댓글 제출 시
+        content = request.POST.get('content')
+        if content:
+            Comment.objects.create(
+                post=post,
+                author=request.user,
+                content=content
+            )
+            return redirect('post_detail', pk=post.pk)
+
+    return render(request, 'wiki/post_detail.html', {'post': post})
+# --- 댓글 기능 구현 ---        
