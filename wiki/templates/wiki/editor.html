@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>사내 위키 에디터</title>
+    <script src="https://unpkg.com/@tiptap/standalone"></script>
+    <style>
+        .editor-toolbar { border: 1px solid #ccc; padding: 5px; background: #f9f9f9; }
+        .ProseMirror { border: 1px solid #ccc; min-height: 300px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>새 문서 작성</h1>
+    <div class="editor-toolbar">
+        <button onclick="editor.chain().focus().toggleBold().run()">굵게</button>
+        <button onclick="editor.chain().focus().setHeading({ level: 1 }).run()">H1</button>
+        <input type="color" oninput="editor.chain().focus().setColor(this.value).run()">
+    </div>
+    <div id="editor"></div>
+
+    <form id="wikiForm" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="content" id="contentInput">
+        <button type="submit" onclick="saveContent()">저장하기</button>
+    </form>
+
+    <script>
+        const { Editor } = Tiptap;
+        const editor = new Editor({
+            element: document.querySelector('#editor'),
+            extensions: [Tiptap.StarterKit, Tiptap.Color],
+            content: '<p>업무 노하우를 입력하세요...</p>',
+        });
+
+        function saveContent() {
+            // 에디터의 HTML 내용을 hidden input에 담아 서버로 전송
+            document.getElementById('contentInput').value = editor.getHTML();
+        }
+    </script>
+</body>
+</html>
