@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; margin: 50px auto; background: white; padding: 40px; border-radius: 10px; shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #eee;">
+    
+    <h1 style="font-size: 2.5rem; color: #333; margin-bottom: 10px; border-bottom: 2px solid #28a745; padding-bottom: 10px;">
+        {{ post.title }}
+    </h1>
+
+    <div style="color: #888; font-size: 0.9rem; margin-bottom: 30px;">
+        작성일: {{ post.created_at|date:"Y-m-d H:i" }} | 작성자: 관리자
+    </div>
+
+    <div class="wiki-content" style="line-height: 1.8; font-size: 1.1rem; color: #444;">
+        {{ post.content|safe }}
+    </div>
+
+    <hr style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+
+    {% if post.attachment %}
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+        <strong>📎 첨부파일:</strong> 
+        <a href="{{ post.attachment.url }}" download>{{ post.attachment.name }}</a>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 30px;">
+        <a href="{% url 'post_list' %}" style="text-decoration: none; color: #28a745; font-weight: bold;">
+            ← 지식 목록으로 돌아가기
+        </a>
+    </div>
+</div>
+
+<style>
+    .wiki-content img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 20px 0;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

@@ -1,100 +1,94 @@
-{% extends "wiki/base.html" %}
+{% extends "base.html" %}
 {% block content %}
-<div class="container" style="max-width: 900px; margin-top: 50px;">
-    <form action="{% url 'post_create' %}" method="POST" id="wiki-form">
+
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<div class="container" style="max-width: 900px; margin: 50px auto;">
+    <form action="{% url 'post_create' %}" method="POST" id="wiki-form" enctype="multipart/form-data">
         {% csrf_token %}
-        <input type="text" name="title" id="title" placeholder="제목을 입력하세요" 
+        
+        <input type="text" name="title" id="title" placeholder="제목을 입력하세요" required
                style="width: 100%; padding: 15px; font-size: 1.5rem; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px;">
         
-        <div class="editor-toolbar" style="background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-bottom: none;">
-            <button type="button" onclick="editor.chain().focus().toggleBold().run()"><b>B</b></button>
-            <button type="button" onclick="editor.chain().focus().toggleItalic().run()"><i>I</i></button>
-            <button type="button" onclick="editor.chain().focus().setHeading({ level: 1 }).run()">H1</button>
-            <input type="color" oninput="editor.chain().focus().setColor(this.value).run()">
-        </div>
-
-        <div id="editor" style="border: 1px solid #ddd; min-height: 400px; padding: 20px; background: white;"></div>
+        <div id="editor-container" style="height: 400px; background: white;"></div>
         
         <input type="hidden" name="content" id="hidden-content">
-        
-        <button type="submit" style="margin-top: 20px; padding: 12px 30px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; float: right;">
-            지식 등록하기
-        </button>
 
-        {% csrf_token %}
-        <div class="file-upload-section" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc;">
-            <label>📎 관련 매뉴얼/파일 첨부:</label>
-            <input type="file" name="attachment" class="form-control">
+        <div class="file-upload-section" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc; background: #fafafa; border-radius: 5px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">📎 관련 매뉴얼/파일 첨부:</label>
+            <input type="file" name="attachment" class="form-control" style="width: 100%;">
         </div>
 
-        <button type="submit" class="btn btn-success mt-3 float-right">지식 등록하기</button>
-
+        <button type="submit" style="margin-top: 20px; padding: 12px 40px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; float: right; font-weight: bold;">
+            지식 등록하기
+        </button>
     </form>
 </div>
 
-<script src="https://unpkg.com/@tiptap/standalone"></script>
 <script>
-    const { Editor } = Tiptap;
-    const editor = new Editor({
-    element: document.querySelector('#editor'),
-    extensions: [
-        Tiptap.StarterKit, 
-        Tiptap.Color, 
-        Tiptap.TextStyle,
-        Tiptap.Image, // <-- 이 한 줄이 이미지를 화면에 그리게 해줍니다.
-    ],
-        content: '<p>업무 노하우를 여기에 기록하세요...</p>',
+    // 2. 에디터 초기화
+    var quill = new Quill('#editor-container', {
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, false] }],
+                ['bold', 'italic', 'underline'],
+                ['image', 'code-block', 'link'],
+                [{ 'color': [] }, { 'background': [] }],          
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }]
+            ]
+        },
+        placeholder: '업무 노하우를 여기에 기록하세요...',
+        theme: 'snow'
     });
 
-    // 폼 제출 시 에디터 내용을 hidden input에 담기
-    document.getElementById('wiki-form').onsubmit = function() {
-        document.getElementById('hidden-content').value = editor.getHTML();
-    };
-
-    // 'editor'라는 id를 가진 div에서 일어나는 붙여넣기 이벤트를 감시합니다.
-    document.querySelector('#editor').addEventListener('paste', async (event) => {
-        // 1. 클립보드 데이터를 가져옵니다.
-        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-        
-        for (const item of items) {
-            // 2. 만약 데이터가 '이미지'라면?
-            if (item.type.indexOf('image') !== -1) {
-                // 브라우저의 기본 붙여넣기 동작을 막습니다 (우리가 직접 처리할 것이므로)
-                event.preventDefault();
-
-                const file = item.getAsFile(); // 이미지 파일 추출
-                const formData = new FormData();
-                formData.append('image', file); // 'image'라는 이름으로 파일을 담습니다.
-
-                try {
-                    // 3. 서버(Django)의 이미지 업로드 주소로 보냅니다.
-                    const response = await fetch('/upload-image/', {
-                        method: 'POST',
-                        body: formData,
-                        // CSRF 토큰 처리가 필요할 수 있습니다 (아래 팁 참고)
-                        headers: {
-                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                        }
-                    });
-
-                    const data = await response.json();
-
-                    // 4. 서버가 저장 후 이미지의 주소(URL)를 돌려주면 에디터에 삽입합니다.
-                    if (data.url) {
-                        editor.chain().focus().setImage({ src: data.url }).run();
-                    }
-                } catch (error) {
-                    console.error("이미지 업로드 실패:", error);
-                    alert("이미지 업로드 중 오류가 발생했습니다.");
+    // 3. 이미지 붙여넣기 처리 (이미지 복사 후 Ctrl+V 대응)
+    quill.root.addEventListener('paste', function (e) {
+        if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
+            e.preventDefault();
+            [].forEach.call(e.clipboardData.files, function(file) {
+                if (file.type.match(/^image\//)) {
+                    uploadImageToServer(file);
                 }
-            }
+            });
         }
     });
 
+    // 4. 서버로 이미지 업로드 함수
+    async function uploadImageToServer(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const response = await fetch('/upload-image/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+            const data = await response.json();
+            if (data.url) {
+                // 현재 커서 위치에 이미지 삽입
+                const range = quill.getSelection();
+                quill.insertEmbed(range.index, 'image', data.url);
+            }
+        } catch (error) {
+            console.error("이미지 업로드 실패:", error);
+        }
+    }
+
+    // 5. 폼 전송 시 Quill의 HTML 내용을 hidden 필드에 복사
+    var form = document.getElementById('wiki-form');
+    form.onsubmit = function() {
+        var content = document.querySelector('input[name=content]');
+        content.value = quill.root.innerHTML;
+        
+        if (content.value === '<p><br></p>' || !content.value) {
+            alert("내용을 입력해주세요.");
+            return false;
+        }
+    };
 </script>
-
-
-
-
 
 {% endblock %}
