@@ -1,40 +1,40 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>사내 위키 에디터</title>
-    <script src="https://unpkg.com/@tiptap/standalone"></script>
-    <style>
-        .editor-toolbar { border: 1px solid #ccc; padding: 5px; background: #f9f9f9; }
-        .ProseMirror { border: 1px solid #ccc; min-height: 300px; padding: 10px; }
-    </style>
-</head>
-<body>
-    <h1>새 문서 작성</h1>
-    <div class="editor-toolbar">
-        <button onclick="editor.chain().focus().toggleBold().run()">굵게</button>
-        <button onclick="editor.chain().focus().setHeading({ level: 1 }).run()">H1</button>
-        <input type="color" oninput="editor.chain().focus().setColor(this.value).run()">
-    </div>
-    <div id="editor"></div>
-
-    <form id="wikiForm" method="POST">
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width: 900px; margin-top: 50px;">
+    <form action="{% url 'post_create' %}" method="POST" id="wiki-form">
         {% csrf_token %}
-        <input type="hidden" name="content" id="contentInput">
-        <button type="submit" onclick="saveContent()">저장하기</button>
+        <input type="text" name="title" id="title" placeholder="제목을 입력하세요" 
+               style="width: 100%; padding: 15px; font-size: 1.5rem; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px;">
+        
+        <div class="editor-toolbar" style="background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-bottom: none;">
+            <button type="button" onclick="editor.chain().focus().toggleBold().run()"><b>B</b></button>
+            <button type="button" onclick="editor.chain().focus().toggleItalic().run()"><i>I</i></button>
+            <button type="button" onclick="editor.chain().focus().setHeading({ level: 1 }).run()">H1</button>
+            <input type="color" oninput="editor.chain().focus().setColor(this.value).run()">
+        </div>
+
+        <div id="editor" style="border: 1px solid #ddd; min-height: 400px; padding: 20px; background: white;"></div>
+        
+        <input type="hidden" name="content" id="hidden-content">
+        
+        <button type="submit" style="margin-top: 20px; padding: 12px 30px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; float: right;">
+            지식 등록하기
+        </button>
     </form>
+</div>
 
-    <script>
-        const { Editor } = Tiptap;
-        const editor = new Editor({
-            element: document.querySelector('#editor'),
-            extensions: [Tiptap.StarterKit, Tiptap.Color],
-            content: '<p>업무 노하우를 입력하세요...</p>',
-        });
+<script src="https://unpkg.com/@tiptap/standalone"></script>
+<script>
+    const { Editor } = Tiptap;
+    const editor = new Editor({
+        element: document.querySelector('#editor'),
+        extensions: [Tiptap.StarterKit, Tiptap.Color, Tiptap.TextStyle],
+        content: '<p>업무 노하우를 여기에 기록하세요...</p>',
+    });
 
-        function saveContent() {
-            // 에디터의 HTML 내용을 hidden input에 담아 서버로 전송
-            document.getElementById('contentInput').value = editor.getHTML();
-        }
-    </script>
-</body>
-</html>
+    // 폼 제출 시 에디터 내용을 hidden input에 담기
+    document.getElementById('wiki-form').onsubmit = function() {
+        document.getElementById('hidden-content').value = editor.getHTML();
+    };
+</script>
+{% endblock %}

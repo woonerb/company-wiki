@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 50px auto;">
+    <h1 style="border-bottom: 2px solid #333; padding-bottom: 10px;">{{ post.title }}</h1>
+    <p style="color: #666;">작성자: {{ post.author.username }} | 작성일: {{ post.created_at }}</p>
+    
+    <div class="wiki-content" style="margin-top: 30px; line-height: 1.6;">
+        {{ post.content|safe }}
+    </div>
+    
+    <hr>
+    <a href="{% url 'post_list' %}" style="text-decoration: none; color: #007bff;">목록으로 돌아가기</a>
+</div>
+{% endblock %}
