@@ -15,6 +15,15 @@ class Post(models.Model):
     attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True)
     #########################################################################################
 
+    CATEGORY_CHOICES = [
+        ('manual', '업무 매뉴얼'),
+        ('history', '과거 업무 처리'),
+        ('notice', '공지사항'),
+        ('weekly', '주간업무'),
+    ]
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='manual')
+    tags = models.CharField(max_length=255, blank=True) # 해시태그 저장용 (예: #복합기 #수리)
+
 
     def __str__(self):
         return self.title

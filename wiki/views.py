@@ -5,6 +5,11 @@ from .models import Post
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from .models import PostImage
+import re # 정규표현식 사용
+from soynlp.noun import NewsNounExtractor # 해쉬태그 추출기
+from django.http import JsonResponse
+import json
+from django.contrib.auth.decorators import login_required
 
 @login_required
 def post_create(request):
@@ -52,3 +57,56 @@ def image_upload(request):
         # 저장된 이미지의 절대 경로를 리턴
         return JsonResponse({'url': img_instance.image.url})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt # 테스트를 위해 잠시 CSRF 체크를 끕니다
+@login_required  # 로그인이 안 되어 있으면 로그인 페이지로 보냅니다.
+def post_create(request):
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        category = request.POST.get('category')
+        tags = request.POST.get('tags') # 하단 태그 입력창에서 온 데이터
+        attachment = request.FILES.get('attachment')
+
+        post = Post.objects.create(
+            title=title,
+            content=content,
+            category=category,
+            tags=tags,
+            attachment=attachment,
+            author=request.user
+        )
+        return redirect('post_detail', pk=post.pk)
+
+    return render(request, 'wiki/editor.html')
+
+# --- 게시글 본문의 키워드를 기반으로 해시태그 단어 추천 ---
+@csrf_exempt # 테스트를 위해 잠시 CSRF 체크를 끕니다
+def suggest_tags(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            content = data.get('content', '').strip()
+
+            if len(content) < 10:
+                return JsonResponse({'tags': []})
+
+            # 명사 추출기 초기화
+            noun_extractor = NewsNounExtractor()
+            
+            # 본문에서 명사 추출 및 빈도수 분석
+            nouns = noun_extractor.train_extract([content]) 
+            
+            # nouns 결과에서 명사만 뽑아 빈도수 순으로 정렬
+            # NewsNounExtractor의 결과는 {단어: NounScore} 형태입니다.
+            suggested_tags = sorted(nouns.keys(), key=lambda x: nouns[x].frequency, reverse=True)
+            
+            # 한 글자 제외 및 상위 7개 선택
+            final_tags = [word for word in suggested_tags if len(word) > 1][:7]
+
+            return JsonResponse({'tags': final_tags})
+        except Exception as e:
+            print(f"Extraction Error: {e}") # 에러 확인용
+            return JsonResponse({'tags': []})
+
+# --- 게시글 본문의 키워드를 기반으로 해시태그 단어 추천 ---        
