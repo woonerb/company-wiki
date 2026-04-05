@@ -1,4 +1,4 @@
-# 📚 Enterprise Knowledge Wiki
+# 📚 지식 Wiki 백과
 > **에이전틱 코딩 기반 업무 지식 백과 플랫폼**
 > 
 > 파편화된 업무 노하우를 기업의 핵심 자산으로 전환하고, 검색 한 번으로 모든 히스토리를 파악하는 스마트 워크 스페이스입니다.
@@ -68,5 +68,3 @@
 
 <br/>
 
----
-© 2026 Enterprise Wiki Project Team. All rights reserved.
