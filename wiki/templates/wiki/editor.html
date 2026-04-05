@@ -1,183 +1,220 @@
-{% extends "base.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiki Workspace - Editor</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --nav-bg: #002147;
+            --sidebar-bg: #F4F5F7;
+            --primary-blue: #0052CC;
+            --border-color: #DFE1E6;
+        }
 
-<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+        body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; color: #172B4D; display: flex; flex-direction: column; height: 100vh; }
 
-<div class="container" style="max-width: 900px; margin: 50px auto; font-family: 'Pretendard', sans-serif;">
-    <form action="{% url 'post_new' %}" method="POST" id="wiki-form" enctype="multipart/form-data">
-        {% csrf_token %}
+        /* 레이아웃 & 네비게이션 생략 (기존 스타일 유지) */
+        .navbar { background-color: var(--nav-bg); height: 50px; display: flex; align-items: center; padding: 0 20px; color: white; }
+        .app-container { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); overflow-y: auto; }
+        .main-content { flex: 1; overflow-y: auto; background: white; }
+        .content-inner { max-width: 900px; margin: 0 auto; padding: 40px 50px; animation: fadeIn 0.4s; }
+
+        /* 폼 공통 스타일 */
+        .form-group { margin-bottom: 25px; }
+        .form-label { display: block; font-weight: 600; margin-bottom: 10px; font-size: 0.95rem; }
+        .form-control { width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
+
+        /* --- 해시태그 전용 스타일 --- */
+        .tag-container {
+            display: flex; flex-wrap: wrap; gap: 8px; padding: 10px;
+            border: 2px solid var(--border-color); border-radius: 6px; background: #fff;
+        }
+        .tag-item {
+            background: #EBECF0; color: #42526E; padding: 4px 10px; border-radius: 4px;
+            display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;
+        }
+        .tag-item i { cursor: pointer; color: #6B778C; font-size: 0.75rem; }
+        .tag-item i:hover { color: #eb5757; }
+        .tag-input { border: none; outline: none; flex: 1; min-width: 150px; font-size: 0.9rem; }
+
+        .recommend-btn {
+            background: #EAE6FF; color: #403294; border: 1px solid #C0B6F2;
+            padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 600;
+            cursor: pointer; transition: 0.2s; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .recommend-btn:hover { background: #C0B6F2; }
+        /* ----------------------- */
+
+        #editor-container { height: 450px; border-radius: 0 0 6px 6px; }
+        .btn-save { background: var(--primary-blue); color: white; border: none; padding: 12px 25px; border-radius: 4px; cursor: pointer; font-weight: 600; }
         
-        <div style="margin-bottom: 15px;">
-            <label style="font-weight: bold; margin-right: 10px;">분류:</label>
-            <select name="category" style="padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
-                <option value="manual">업무 매뉴얼</option>
-                <option value="history">과거 업무 처리</option>
-                <option value="notice">공지사항</option>
-                <option value="weekly">주간업무</option>
-            </select>
-        </div>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="{% url 'post_list' %}" class="navbar-brand"><i class="fa-solid fa-layer-group"></i> WIKI Workspace</a>
+    </nav>
 
-        <input type="text" name="title" id="title" placeholder="제목을 입력하세요" required
-               style="width: 100%; padding: 15px; font-size: 1.5rem; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px;">
-        
-        <div id="editor-container" style="height: 400px; background: white;"></div>
+    <div class="app-container">
+        <aside class="sidebar">
+            </aside>
 
-        <div class="tag-section" style="margin-top: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background: #fafafa;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">🏷️ 해시태그 (최대 10개)</label>
-            
-            <div id="ai-tag-suggestions" style="margin-bottom: 10px;">
-                <span style="font-size: 0.85rem; color: #666;">AI 추천: </span>
-                <div id="suggestion-list" style="display: inline-block;"></div>
+        <main class="main-content">
+            <div class="content-inner">
+                <h2 style="margin-top: 0;">📄 문서 편집기</h2>
+                
+                <form method="POST" id="post-form">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label class="form-label">게시판</label>
+                        <select name="node" class="form-control" required>
+                            {% for node in nodes %}
+                                <option value="{{ node.id }}" {% if post.node.id == node.id %}selected{% endif %}>{{ node.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">제목</label>
+                        <input type="text" name="title" id="post-title" class="form-control" value="{{ post.title|default:'' }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">해시태그</label>
+                        <div class="tag-container" id="tag-box">
+                            {% for tag in post.tags.all %}
+                                <div class="tag-item" data-tag="{{ tag.name }}">
+                                    #{{ tag.name }} <i class="fa-solid fa-xmark" onclick="removeTag(this)"></i>
+                                </div>
+                            {% endfor %}
+                            <input type="text" class="tag-input" id="tag-input" placeholder="태그 입력 후 Enter (쉼표 구분 가능)">
+                        </div>
+                        <input type="hidden" name="tags" id="hidden-tags-input">
+                        
+                        <button type="button" class="recommend-btn" id="ai-recommend-btn">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI 해시태그 추천받기
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">본문</label>
+                        <div id="editor-container">{{ post.content|safe|default:'' }}</div>
+                        <input type="hidden" name="content" id="id_content">
+                    </div>
+
+                    <div style="text-align: right; margin-top: 30px;">
+                        <button type="button" class="btn-save" style="background:#666; margin-right:5px;" onclick="history.back()">취소</button>
+                        <button type="submit" class="btn-save">문서 저장하기</button>
+                    </div>
+                </form>
             </div>
+        </main>
+    </div>
 
-            <div id="selected-tags" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px;"></div>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-            <div style="display: flex; gap: 5px;">
-                <input type="text" id="tag-input" placeholder="태그 입력 후 Enter" 
-                    style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <button type="button" onclick="addTagFromInput()" style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
-            </div>
-            
-            <input type="hidden" name="tags" id="hidden-tags-input">
-        </div>
+    <script>
+        // 1. Quill 초기화
+        const quill = new Quill('#editor-container', {
+            theme: 'snow',
+            modules: { toolbar: [[{'header':[1,2,false]}], ['bold','italic','underline'], ['link','image','code-block'], [{'list':'ordered'},{'list':'bullet'}]] }
+        });
 
-        <input type="hidden" name="content" id="hidden-content">
+        // 2. 해시태그 로직
+        const tagInput = document.getElementById('tag-input');
+        const tagBox = document.getElementById('tag-box');
+        let tags = [];
 
-        <div class="file-upload-section" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc; background: #fafafa; border-radius: 5px;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">📎 관련 파일 첨부:</label>
-            <input type="file" name="attachment" class="form-control" style="width: 100%;">
-        </div>
+        // 기존 태그 초기화
+        document.querySelectorAll('.tag-item').forEach(item => {
+            tags.push(item.getAttribute('data-tag'));
+        });
 
-        <button type="submit" style="margin-top: 20px; padding: 12px 40px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; float: right; font-weight: bold;">
-            지식 등록하기
-        </button>
-    </form>
-</div>
-
-<script>
-    // 1. 에디터 초기화 (가장 먼저 실행되어야 함)
-    var quill = new Quill('#editor-container', {
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, false] }],
-                ['bold', 'italic', 'underline'],
-                ['image', 'code-block', 'link'],
-                [{ 'color': [] }, { 'background': [] }],          
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }]
-            ]
-        },
-        placeholder: '업무 노하우를 여기에 기록하세요...',
-        theme: 'snow'
-    });
-
-    let selectedTags = [];
-    let typingTimer;
-
-    // 2. 태그 관련 기능
-    function addTag(tag) {
-        tag = tag.replace('#', '').trim();
-        if (tag && !selectedTags.includes(tag) && selectedTags.length < 10) {
-            selectedTags.push(tag);
-            renderTags();
-        } else if (selectedTags.length >= 10) {
-            alert("태그는 최대 10개까지만 등록 가능합니다.");
-        }
-        document.getElementById('tag-input').value = '';
-    }
-
-    function renderTags() {
-        const container = document.getElementById('selected-tags');
-        container.innerHTML = selectedTags.map(tag => `
-            <span style="background: #28a745; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem;">
-                #${tag} <span onclick="removeTag('${tag}')" style="cursor: pointer; margin-left: 5px;">&times;</span>
-            </span>
-        `).join('');
-        document.getElementById('hidden-tags-input').value = selectedTags.join(',');
-    }
-
-    function removeTag(tag) {
-        selectedTags = selectedTags.filter(t => t !== tag);
-        renderTags();
-    }
-
-    function addTagFromInput() {
-        const input = document.getElementById('tag-input');
-        if (input.value.trim()) {
-            addTag(input.value.trim());
-        }
-    }
-
-    // 3. AI 추천 기능 (quill이 정의된 후 실행)
-    quill.on('text-change', function() {
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(fetchAITags, 1500);
-    });
-
-    async function fetchAITags() {
-        const content = quill.getText().trim();
-        if (content.length < 10) return;
-
-        try {
-            const response = await fetch('/suggest-tags/', {
-                method: 'POST',
-                body: JSON.stringify({ content: content }),
-                headers: { 
-                    'X-CSRFToken': '{{ csrf_token }}', 
-                    'Content-Type': 'application/json' 
-                }
-            });
-            const data = await response.json();
-            const suggestionList = document.getElementById('suggestion-list');
-            suggestionList.innerHTML = data.tags.map(tag => `
-                <button type="button" onclick="addTag('${tag}')" 
-                        style="margin-right: 5px; border: 1px solid #28a745; background: white; color: #28a745; border-radius: 12px; padding: 2px 8px; cursor: pointer; font-size: 0.8rem; margin-bottom:5px;">
-                    + #${tag}
-                </button>
-            `).join('');
-        } catch (e) { console.log("AI 추천 실패"); }
-    }
-
-    // 4. 이미지 및 폼 전송 처리
-    quill.root.addEventListener('paste', function (e) {
-        if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
-            e.preventDefault();
-            [].forEach.call(e.clipboardData.files, function(file) {
-                if (file.type.match(/^image\//)) { uploadImageToServer(file); }
-            });
-        }
-    });
-
-    async function uploadImageToServer(file) {
-        const formData = new FormData();
-        formData.append('image', file);
-        try {
-            const response = await fetch('/upload-image/', {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            });
-            const data = await response.json();
-            if (data.url) {
-                const range = quill.getSelection();
-                quill.insertEmbed(range.index, 'image', data.url);
+        function addTag(tagName) {
+            tagName = tagName.replace(/[#\s,]/g, ""); // 불필요한 문자 제거
+            if (tagName && !tags.includes(tagName)) {
+                tags.push(tagName);
+                const tagEl = document.createElement('div');
+                tagEl.className = 'tag-item';
+                tagEl.setAttribute('data-tag', tagName);
+                tagEl.innerHTML = `#${tagName} <i class="fa-solid fa-xmark" onclick="removeTag(this)"></i>`;
+                tagBox.insertBefore(tagEl, tagInput);
             }
-        } catch (error) { console.error("이미지 업로드 실패:", error); }
-    }
-
-    document.getElementById('wiki-form').onsubmit = function() {
-        document.getElementById('hidden-content').value = quill.root.innerHTML;
-        if (quill.getText().trim().length === 0) {
-            alert("내용을 입력해주세요.");
-            return false;
+            tagInput.value = "";
         }
-    };
 
-    document.getElementById('tag-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addTagFromInput();
+        function removeTag(el) {
+            const tagItem = el.parentElement;
+            const tagName = tagItem.getAttribute('data-tag');
+            tags = tags.filter(t => t !== tagName);
+            tagItem.remove();
         }
-    });
-</script>
-{% endblock %}
+
+        tagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addTag(tagInput.value);
+            }
+        });
+
+        // 3. AI 해시태그 추천 연동 (API 호출)
+        document.getElementById('ai-recommend-btn').addEventListener('click', async () => {
+            const title = document.getElementById('post-title').value;
+            const content = quill.getText();
+
+            if (!content.trim()) {
+                Swal.fire('알림', '본문 내용을 먼저 입력해야 추천이 가능합니다.', 'info');
+                return;
+            }
+
+            // 버튼 로딩 상태
+            const btn = document.getElementById('ai-recommend-btn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 분석 중...';
+            btn.disabled = true;
+
+            try {
+                // 해쉬태그 의 추천 API 호출
+                const response = await fetch("{% url 'suggest_tags' %}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+                    body: JSON.stringify({ title: title, content: content })
+                });
+                
+                const data = await response.json();
+                
+                if (data.tags && data.tags.length > 0) {
+                    data.tags.forEach(tag => addTag(tag));
+                    Swal.fire({ icon: 'success', title: '추천 완료', text: 'AI가 관련 태그를 찾아 추가했습니다!', timer: 1500 });
+                } else {
+                    Swal.fire('알림', '추천할 만한 태그를 찾지 못했습니다.', 'info');
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire('에러', '추천 서버와 통신 중 오류가 발생했습니다.', 'error');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        });
+
+        // 4. 폼 전송 시 데이터 취합
+        document.getElementById('post-form').onsubmit = function() {
+            document.getElementById('id_content').value = quill.root.innerHTML;
+            document.getElementById('hidden-tags-input').value = JSON.stringify(tags);
+            return true;
+        };
+    </script>
+</body>
+</html>

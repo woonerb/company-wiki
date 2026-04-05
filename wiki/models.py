@@ -79,3 +79,44 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'{self.author}님의 댓글'
+    
+
+class KnowledgeNode(models.Model):
+    name = models.CharField(max_length=100)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    order = models.PositiveIntegerField(default=0)  # 드래그 앤 드롭 순서 저장
+
+    def has_user_permission(self, user, required_level):
+        """
+        재귀적으로 부모 노드를 탐색하며 사용자의 권한을 확인합니다.
+        """
+        if user.is_superuser:
+            return True
+
+        # 1. 현재 노드에 직접 할당된 권한 확인
+        if NodePermission.objects.filter(user=user, node=self, permission_level=required_level).exists():
+            return True
+        
+        # 2. 부모 노드가 있다면 부모의 권한을 확인 (재귀 호출)
+        if self.parent:
+            return self.parent.has_user_permission(user, required_level)
+            
+        return False
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+class NodePermission(models.Model):
+    PERMISSION_CHOICES = [
+        ('read', '읽기'),
+        ('edit', '수정/관리'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    node = models.ForeignKey(KnowledgeNode, on_delete=models.CASCADE)
+    permission_level = models.CharField(max_length=10, choices=PERMISSION_CHOICES)
+
+    class Meta:
+        unique_together = ('user', 'node') # 중복 권한 방지    

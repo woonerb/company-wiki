@@ -19,4 +19,8 @@ urlpatterns = [
     # 유틸리티 (이미지 업로드, 태그 추천 등)
     path('upload-image/', views.image_upload, name='image_upload'),
     path('suggest-tags/', views.suggest_tags, name='suggest_tags'),
+
+    # 지식 트리 수정을 위한 API 경로
+    path('node/update/', views.update_node_api, name='update_node_api'),
+    path('node/update-order/', views.update_node_order_api, name='update_node_order_api'),
 ]

@@ -4,57 +4,60 @@ from django.http import JsonResponse, HttpResponseRedirect, HttpResponseForbidde
 from django.urls import reverse
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
-
-from .models import Post, Comment, PostImage
+from django.views.decorators.http import require_POST
+from .models import Post, Comment, PostImage, Tag, KnowledgeNode, NodePermission
 from soynlp.noun import NewsNounExtractor
 
 # --- [1] 게시글 목록 및 검색 ---
 @login_required
 def post_list(request):
-    # 1. 검색어 가져오기 및 공백 제거
     search_query = request.GET.get('q', '').strip()
+    node_id = request.GET.get('node') # 사이드바 노드 클릭 시 필터링용
     
-    # 2. 기본 쿼리셋 설정 (최신순 정렬)
-    posts = Post.objects.all().order_by('-created_at')
+    posts = Post.objects.all().prefetch_related('tags').select_related('author').order_by('-created_at')
+    
+    # 사이드바 지식 트리를 위한 데이터 (모든 페이지 공통)
+    nodes = KnowledgeNode.objects.all().order_by('order')
 
-    # 3. 검색어가 있을 경우 필터링 수행
+    # 1. 검색어 필터링
     if search_query:
-        # filter() 내부의 Q 객체들은 데이터베이스 레벨에서 효율적으로 처리됩니다.
         posts = posts.filter(
             Q(title__icontains=search_query) | 
             Q(content__icontains=search_query) |
-            Q(tags__name__icontains=search_query) | # ManyToMany 관계 검색
+            Q(tags__name__icontains=search_query) |
             Q(author__username__icontains=search_query)
-        ).distinct() # 다대다 관계 검색 시 발생하는 중복 행 제거
+        ).distinct()
 
-    # 4. 템플릿 렌더링
+    # 2. 특정 노드(게시판) 필터링
+    if node_id:
+        posts = posts.filter(category=node_id) 
+
     return render(request, 'wiki/post_list.html', {
         'posts': posts,
-        'search_query': search_query
+        'search_query': search_query,
+        'nodes': nodes,
     })
 
-#------특정 태그 클릭시 모아보기 기능----
+# --- [2] 특정 태그 클릭 시 모아보기 ---
 @login_required
 def tag_posts(request, tag_name):
-    # 해당 이름의 태그를 찾고 (없으면 404 에러)
     tag = get_object_or_404(Tag, name=tag_name)
-    
-    # 해당 태그와 연결된 모든 게시글 가져오기 (0.001초 만에!)
     posts = tag.posts.all().order_by('-created_at')
+    nodes = KnowledgeNode.objects.all().order_by('order')
     
     return render(request, 'wiki/post_list.html', {
         'posts': posts,
-        'tag_name': tag_name
+        'tag_name': tag_name,
+        'nodes': nodes,
     })
-#------특정 태그 클릭시 모아보기 기능----
 
-
-# --- [2] 게시글 상세 및 댓글 등록 ---
+# --- [3] 게시글 상세 및 댓글 ---
 @login_required
 def post_detail(request, pk):
     post = get_object_or_404(Post, pk=pk)
+    nodes = KnowledgeNode.objects.all().order_by('order')
     
-    if request.method == "POST":  # 댓글 등록 로직
+    if request.method == "POST":
         content = request.POST.get('content')
         if content:
             Comment.objects.create(
@@ -64,40 +67,45 @@ def post_detail(request, pk):
             )
             return redirect('post_detail', pk=post.pk)
 
-    return render(request, 'wiki/post_detail.html', {'post': post})
+    return render(request, 'wiki/post_detail.html', {
+        'post': post,
+        'nodes': nodes,
+    })
 
-# --- [3] 게시글 생성 ---
+# --- [4] 게시글 생성 (Editor) ---
 @login_required
 def post_create(request):
     if request.method == 'POST':
         title = request.POST.get('title')
         content = request.POST.get('content')
-        category = request.POST.get('category')
-        tags = request.POST.get('tags')
+        node_id = request.POST.get('node') # HTML <select name="node">
         attachment = request.FILES.get('attachment')
 
-        if title and content:
+        if title and content and node_id:
+            # Post 생성 (category 필드에 선택한 노드 ID 저장)
             post = Post.objects.create(
                 title=title,
                 content=content,
-                category=category,
+                category=node_id,
                 attachment=attachment,
                 author=request.user
             )
 
-            # 태그 처리 로직 추가
-            tag_data = request.POST.get('tags', '') # 폼에서 '어음,주간업무' 형태로 올 경우
+            # 태그 처리
+            tag_data = request.POST.get('tags', '')
             if tag_data:
                 tag_list = [t.strip() for t in tag_data.replace(',', ' ').split() if t.strip()]
                 for name in tag_list:
-                    tag, created = Tag.objects.get_or_create(name=name)
-                    post.tags.add(tag) # ManyToMany 관계에 추가
+                    tag, _ = Tag.objects.get_or_create(name=name)
+                    post.tags.add(tag)
                     
             return redirect('post_detail', pk=post.pk)
 
-    return render(request, 'wiki/editor.html')
+    # GET 요청 시: 콤보박스에 뿌려줄 노드 목록 전달
+    nodes = KnowledgeNode.objects.all().order_by('order')
+    return render(request, 'wiki/editor.html', {'nodes': nodes})
 
-# --- [4] 게시글 수정/삭제/좋아요/복제 ---
+# --- [5] 게시글 수정 ---
 @login_required
 def post_edit(request, pk):
     post = get_object_or_404(Post, pk=pk)
@@ -107,22 +115,34 @@ def post_edit(request, pk):
     if request.method == "POST":
         post.title = request.POST.get('title')
         post.content = request.POST.get('content')
-        post.category = request.POST.get('category')
+        post.category = request.POST.get('node') # 수정된 노드 ID 반영
         post.save()
+
+        # 태그 업데이트 (기존 태그 삭제 후 재등록)
+        tag_data = request.POST.get('tags', '')
+        if tag_data:
+            post.tags.clear()
+            tag_list = [t.strip() for t in tag_data.replace(',', ' ').split() if t.strip()]
+            for name in tag_list:
+                tag, _ = Tag.objects.get_or_create(name=name)
+                post.tags.add(tag)
+
         return redirect('post_detail', pk=post.pk)
+    
+    nodes = KnowledgeNode.objects.all().order_by('order')
+    return render(request, 'wiki/editor.html', {
+        'post': post,
+        'nodes': nodes,
+    })
 
-    return render(request, 'wiki/post_form.html', {'post': post})
-
+# --- [6] 게시글 삭제/좋아요/복제 ---
 @login_required
 def post_delete(request, pk):
     post = get_object_or_404(Post, pk=pk)
     if post.author != request.user:
         return HttpResponseForbidden("본인의 글만 삭제할 수 있습니다.")
-    
-    if request.method == "POST":
-        post.delete()
-        return redirect('post_list')
-    return redirect('post_detail', pk=pk)
+    post.delete()
+    return redirect('post_list')
 
 @login_required
 def post_like(request, pk):
@@ -137,23 +157,24 @@ def post_like(request, pk):
 def post_copy(request, pk):
     parent_post = get_object_or_404(Post, pk=pk)
     if request.method == "POST":
-        new_category = request.POST.get('category')
+        new_node_id = request.POST.get('node')
         new_post = Post.objects.create(
             title=f"[복사본] {parent_post.title}",
             content=parent_post.content,
-            category=new_category,
+            category=new_node_id,
             author=request.user
         )
         return redirect('post_detail', pk=new_post.pk)
-    return render(request, 'wiki/post_copy_form.html', {'post': parent_post})
+    
+    nodes = KnowledgeNode.objects.all().order_by('order')
+    return render(request, 'wiki/post_copy_form.html', {'post': parent_post, 'nodes': nodes})
 
-# --- [5] 댓글 수정/삭제 ---
+# --- [7] 댓글 수정/삭제 ---
 @login_required
 def comment_edit(request, pk):
     comment = get_object_or_404(Comment, pk=pk)
     if comment.author != request.user:
         return HttpResponseForbidden("본인의 댓글만 수정할 수 있습니다.")
-
     if request.method == "POST":
         comment.content = request.POST.get('content')
         comment.save()
@@ -164,19 +185,15 @@ def comment_edit(request, pk):
 def comment_delete(request, pk):
     comment = get_object_or_404(Comment, pk=pk)
     post_pk = comment.post.pk
-    if comment.author != request.user:
-        return HttpResponseForbidden("본인의 댓글만 삭제할 수 있습니다.")
-    
-    if request.method == "POST":
+    if comment.author == request.user:
         comment.delete()
     return redirect('post_detail', pk=post_pk)
 
-# --- [6] 유틸리티 (이미지 업로드 & 태그 추천) ---
+# --- [8] 이미지 업로드 & 태그 추천 API ---
 @login_required
 def image_upload(request):
     if request.method == 'POST' and request.FILES.get('image'):
-        img_file = request.FILES['image']
-        img_instance = PostImage.objects.create(image=img_file)
+        img_instance = PostImage.objects.create(image=request.FILES['image'])
         return JsonResponse({'url': img_instance.image.url})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
@@ -186,17 +203,46 @@ def suggest_tags(request):
         try:
             data = json.loads(request.body)
             content = data.get('content', '').strip()
-            if len(content) < 10:
-                return JsonResponse({'tags': []})
-
+            if len(content) < 10: return JsonResponse({'tags': []})
+            
             noun_extractor = NewsNounExtractor()
             nouns = noun_extractor.train_extract([content]) 
-            suggested_tags = sorted(nouns.keys(), key=lambda x: nouns[x].frequency, reverse=True)
-            final_tags = [word for word in suggested_tags if len(word) > 1][:7]
-
-            return JsonResponse({'tags': final_tags})
-        except Exception as e:
+            suggested = sorted(nouns.keys(), key=lambda x: nouns[x].frequency, reverse=True)
+            return JsonResponse({'tags': [w for w in suggested if len(w) > 1][:7]})
+        except:
             return JsonResponse({'tags': []})
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+# --- [9] 지식 노드(트리) 관리 API ---
+@login_required
+@require_POST
+def update_node_api(request):
+    try:
+        data = json.loads(request.body)
+        node = get_object_or_404(KnowledgeNode, id=data.get('id'))
 
+        # 권한 체크
+        if not node.has_user_permission(request.user, 'edit'):
+            return JsonResponse({'status': 'error', 'message': '수정 권한이 없습니다.'}, status=403)
+
+        node.name = data.get('name')
+        node.save()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+@require_POST
+def update_node_order_api(request):
+    try:
+        data = json.loads(request.body)
+        node = get_object_or_404(KnowledgeNode, id=data.get('id'))
+
+        if not node.has_user_permission(request.user, 'edit'):
+            return JsonResponse({'status': 'error', 'message': '순서 변경 권한이 없습니다.'}, status=403)
+
+        node.order = data.get('position')
+        node.save()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

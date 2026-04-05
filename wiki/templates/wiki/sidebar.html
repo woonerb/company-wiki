@@ -1,0 +1,45 @@
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<ul id="knowledge-tree-items">
+    {% for node in nodes %}
+    <li data-id="{{ node.id }}" class="tree-item" style="cursor: move; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px;">
+        <span class="node-name">{{ node.name }}</span>
+        <button onclick="editNode('{{ node.id }}', '{{ node.name }}')" class="btn btn-sm btn-link">수정</button>
+    </li>
+    {% endfor %}
+</ul>
+
+<script>
+// 1. 드래그 앤 드롭 설정
+const el = document.getElementById('knowledge-tree-items');
+const sortable = Sortable.create(el, {
+    animation: 150,
+    onEnd: function (evt) {
+        let order = [];
+        document.querySelectorAll('.tree-item').forEach((el, index) => {
+            order.push({ id: el.dataset.id, position: index });
+        });
+        
+        // 순서 변경 API 호출
+        updateNodeOrder(order);
+    },
+});
+
+// 2. SweetAlert2를 이용한 수정
+async function editNode(nodeId, currentName) {
+    const { value: newName } = await Swal.fire({
+        title: '지식 트리 수정',
+        input: 'text',
+        inputValue: currentName,
+        showCancelButton: true,
+        inputValidator: (value) => {
+            if (!value) return '이름을 입력해주세요!'
+        }
+    });
+
+    if (newName && newName !== currentName) {
+        saveNodeChange(nodeId, newName);
+    }
+}
+</script>
