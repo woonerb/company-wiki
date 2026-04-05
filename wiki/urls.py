@@ -23,4 +23,12 @@ urlpatterns = [
     # 지식 트리 수정을 위한 API 경로
     path('node/update/', views.update_node_api, name='update_node_api'),
     path('node/update-order/', views.update_node_order_api, name='update_node_order_api'),
+
+    # 지식 트리 관리 페이지 구현
+    path('manage/tree/', views.tree_management, name='tree_management'),
+    path('api/node/save-structure/', views.save_tree_api, name='save_tree_api'),
+    path('api/node/permission/', views.update_node_permission, name='update_node_permission'),
+
+    path('api/user/search/', views.user_search_api, name='user_search_api'),
+    path('api/node/permission/add/', views.add_node_permission, name='add_node_permission'),
 ]

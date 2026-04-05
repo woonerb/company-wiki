@@ -35,7 +35,21 @@
         .app-container { display: flex; flex: 1; overflow: hidden; }
 
         /* 왼쪽 사이드바 */
-        .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar { 
+            width: 260px; 
+            background: var(--sidebar-bg); 
+            border-right: 1px solid var(--border-color); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; /* 내부 스크롤을 위해 hidden */
+        }
+        
+        /* 사이드바 상단 컨텐츠 영역 (스크롤 가능) */
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
         .sidebar-section { padding: 20px 10px 10px 15px; }
         .sidebar-title { font-size: 0.75rem; font-weight: 700; color: #6B778C; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         
@@ -47,6 +61,46 @@
         .nav-item:hover { background: var(--sidebar-hover); color: var(--primary-blue); }
         .nav-item.active { background: #DEEBFF; color: var(--primary-blue); font-weight: 600; }
         .nav-item i { width: 16px; text-align: center; font-size: 0.85rem; }
+
+        /* 사이드바 하단 관리 버튼 영역 */
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            background: var(--sidebar-bg);
+            display: flex;
+            justify-content: center; 
+            align-items: center;
+        }
+
+        .btn-manage-tree {
+            display: flex;
+            align-items: center;
+            justify-content: center; /* 버튼 내부 텍스트와 아이콘도 중앙 정렬 */
+            gap: 8px;
+            
+            /* 너비 조정: 100% 대신 고정 너비나 적절한 비율을 주면 더 중앙처럼 보입니다 */
+            width: 90%; 
+            padding: 10px 0; /* 좌우 패딩을 빼고 너비로 조절 */
+            
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #42526E;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            
+            /* 오른쪽으로 치우침 방지 */
+            margin: 0 auto;
+        }
+
+        .btn-manage-tree:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
 
         /* 트리 아이템 스타일 및 수정 버튼 */
         .tree-item { padding-left: 25px; font-size: 0.85rem; cursor: grab; }
@@ -99,40 +153,50 @@
 
     <div class="app-container">
         <aside class="sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-title">메뉴</div>
-                <a href="{% url 'post_list' %}" class="nav-item {% if not request.GET.node %}active{% endif %}">
-                    <i class="fa-solid fa-clock-rotate-left"></i> 최근 문서
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="fa-solid fa-star"></i> 즐겨찾기
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">메뉴</div>
+                    <a href="{% url 'post_list' %}" class="nav-item {% if not request.GET.node %}active{% endif %}">
+                        <i class="fa-solid fa-clock-rotate-left"></i> 최근 문서
+                    </a>
+                    <a href="#" class="nav-item">
+                        <i class="fa-solid fa-star"></i> 즐겨찾기
+                    </a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title">
+                        지식 트리 
+                        {% if user.is_staff %}<i class="fa-solid fa-gear" style="cursor: pointer; opacity: 0.5;"></i>{% endif %}
+                    </div>
+                    
+                    <div id="knowledge-tree-list">
+                        {% load wiki_tags %}
+                        {% for node in nodes %}
+                            {# 1. 최상위(부모가 없는) 노드부터 시작합니다 #}
+                            {% if not node.parent %}
+                                {% include "wiki/partial_node.html" with node=node all_nodes=nodes %}
+                            {% endif %}
+                        {% empty %}
+                            <div style="padding: 10px; font-size: 0.8rem; color: #999; text-align: center;">
+                                생성된 게시판이 없습니다.
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="{% url 'tree_management' %}" class="btn-manage-tree">
+                    <i class="fa-solid fa-sitemap"></i>
+                    <span>트리 및 권한 관리</span>
                 </a>
             </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-title">
-                    지식 트리 
-                    {% if user.is_staff %}<i class="fa-solid fa-gear" style="cursor: pointer; opacity: 0.5;"></i>{% endif %}
-                </div>
-                <div id="knowledge-tree-list">
-                    {% for node in nodes %}
-                        <div class="nav-item tree-item {% if request.GET.node == node.id|stringformat:'s' %}active{% endif %}" data-id="{{ node.id }}">
-                            <i class="fa-solid fa-folder-tree" style="font-size: 0.7rem; opacity: 0.5;"></i>
-                            
-                            <a href="{% url 'post_list' %}?node={{ node.id }}" style="text-decoration: none; color: inherit; flex: 1;">
-                                <span class="node-name">{{ node.name }}</span>
-                            </a>
-
-                            <button class="edit-node-btn" title="수정" onclick="event.preventDefault(); editNode('{{ node.id }}', '{{ node.name }}')">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                        </div>
-                    {% empty %}
-                        <div style="padding: 10px; font-size: 0.8rem; color: #999; text-align: center;">
-                            생성된 게시판이 없습니다.
-                        </div>
-                    {% endfor %}
-                </div>
+            <div class="sidebar-footer">
+            <a href="{% url 'tree_management' %}" class="btn-manage-tree">
+                <i class="fa-solid fa-sitemap"></i>
+                <span>트리 및 권한 관리</span>
+            </a>
             </div>
         </aside>
 

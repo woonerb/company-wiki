@@ -5,8 +5,11 @@ from django.urls import reverse
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from .models import Post, Comment, PostImage, Tag, KnowledgeNode, NodePermission
+
+from wiki.decorators import node_permission_required
+from .models import Node, Post, Comment, PostImage, Tag, NodePermission
 from soynlp.noun import NewsNounExtractor
+from django.contrib.auth.models import User
 
 # --- [1] 게시글 목록 및 검색 ---
 @login_required
@@ -17,7 +20,7 @@ def post_list(request):
     posts = Post.objects.all().prefetch_related('tags').select_related('author').order_by('-created_at')
     
     # 사이드바 지식 트리를 위한 데이터 (모든 페이지 공통)
-    nodes = KnowledgeNode.objects.all().order_by('order')
+    nodes = Node.objects.all().order_by('order')
 
     # 1. 검색어 필터링
     if search_query:
@@ -43,7 +46,7 @@ def post_list(request):
 def tag_posts(request, tag_name):
     tag = get_object_or_404(Tag, name=tag_name)
     posts = tag.posts.all().order_by('-created_at')
-    nodes = KnowledgeNode.objects.all().order_by('order')
+    nodes = Node.objects.all().order_by('order')
     
     return render(request, 'wiki/post_list.html', {
         'posts': posts,
@@ -55,7 +58,7 @@ def tag_posts(request, tag_name):
 @login_required
 def post_detail(request, pk):
     post = get_object_or_404(Post, pk=pk)
-    nodes = KnowledgeNode.objects.all().order_by('order')
+    nodes = Node.objects.all().order_by('order')
     
     if request.method == "POST":
         content = request.POST.get('content')
@@ -102,10 +105,11 @@ def post_create(request):
             return redirect('post_detail', pk=post.pk)
 
     # GET 요청 시: 콤보박스에 뿌려줄 노드 목록 전달
-    nodes = KnowledgeNode.objects.all().order_by('order')
+    nodes = Node.objects.all().order_by('order')
     return render(request, 'wiki/editor.html', {'nodes': nodes})
 
 # --- [5] 게시글 수정 ---
+@node_permission_required('edit')
 @login_required
 def post_edit(request, pk):
     post = get_object_or_404(Post, pk=pk)
@@ -129,7 +133,7 @@ def post_edit(request, pk):
 
         return redirect('post_detail', pk=post.pk)
     
-    nodes = KnowledgeNode.objects.all().order_by('order')
+    nodes = Node.objects.all().order_by('order')
     return render(request, 'wiki/editor.html', {
         'post': post,
         'nodes': nodes,
@@ -166,7 +170,7 @@ def post_copy(request, pk):
         )
         return redirect('post_detail', pk=new_post.pk)
     
-    nodes = KnowledgeNode.objects.all().order_by('order')
+    nodes = Node.objects.all().order_by('order')
     return render(request, 'wiki/post_copy_form.html', {'post': parent_post, 'nodes': nodes})
 
 # --- [7] 댓글 수정/삭제 ---
@@ -219,15 +223,18 @@ def suggest_tags(request):
 def update_node_api(request):
     try:
         data = json.loads(request.body)
-        node = get_object_or_404(KnowledgeNode, id=data.get('id'))
+        node = get_object_or_404(Node, id=data.get('id'))
+
 
         # 권한 체크
-        if not node.has_user_permission(request.user, 'edit'):
-            return JsonResponse({'status': 'error', 'message': '수정 권한이 없습니다.'}, status=403)
+        # 관리자는 권한 체크 통과
+        if not request.user.is_superuser:
+            if not node.has_user_permission(request.user, 'edit'):
+                return JsonResponse({'status': 'error', 'message': '수정 권한이 없습니다.'}, status=403)
 
-        node.name = data.get('name')
-        node.save()
-        return JsonResponse({'status': 'success'})
+            node.name = data.get('name')
+            node.save()
+            return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
@@ -236,7 +243,7 @@ def update_node_api(request):
 def update_node_order_api(request):
     try:
         data = json.loads(request.body)
-        node = get_object_or_404(KnowledgeNode, id=data.get('id'))
+        node = get_object_or_404(Node, id=data.get('id'))
 
         if not node.has_user_permission(request.user, 'edit'):
             return JsonResponse({'status': 'error', 'message': '순서 변경 권한이 없습니다.'}, status=403)
@@ -246,3 +253,108 @@ def update_node_order_api(request):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+#------ 지식트리 관리페이지 구현--------------------------    
+# 관리 페이지 렌더링
+def tree_management(request):
+    nodes = Node.objects.all() # 트리 구조에 맞는 쿼리셋
+    return render(request, 'tree_management.html', {'nodes': nodes})
+
+# 트리 구조 저장 API (드래그 앤 드롭 결과 저장)
+@login_required
+@require_POST
+def save_tree_api(request):
+    try:
+        data = json.loads(request.body)
+        for item in data:
+            node = get_object_or_404(Node, id=item.get('id'))
+            p_id = item.get('parent')
+
+            # [핵심] "null" 문자열이나 빈 값, 혹은 자기 자신인 경우 체크
+            if not p_id or str(p_id).lower() == 'null' or str(p_id) == str(node.id):
+                node.parent = None
+            else:
+                node.parent = Node.objects.get(id=p_id)
+
+            node.order = item.get('position', 0)
+            node.save()
+        return JsonResponse({"status": "success", "message": "트리 구조가 저장되었습니다."})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+
+# 권한 부여 API
+def update_node_permission(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        node_id = data.get('node_id')
+        user_email = data.get('email')
+        # User 모델에서 이메일로 사용자를 찾아 Node 권한 테이블에 추가하는 로직
+        return JsonResponse({"status": "success"})    
+
+def user_search_api(request):
+    query = request.GET.get('q', '')
+    if len(query) < 2: # 최소 2글자 이상 입력 시 검색
+        return JsonResponse({'results': []})
+    
+    users = User.objects.filter(
+        Q(username__icontains=query) | Q(email__icontains=query)
+    )[:10] # 최대 10명만 반환
+    
+    results = [{'id': u.id, 'username': u.username, 'email': u.email} for u in users]
+    return JsonResponse({'results': results})
+
+@require_POST
+def add_node_permission(request):
+    data = json.loads(request.body)
+    node_id = data.get('node_id')
+    user_id = data.get('user_id')
+    role = data.get('role') # 'read', 'edit', 'all'
+
+    try:
+        node = Node.objects.get(id=node_id)
+        user = User.objects.get(id=user_id)
+
+        # 기존 권한 초기화 (중복 방지)
+        node.viewers.remove(user)
+        node.editors.remove(user)
+        node.managers.remove(user)
+
+        # 새 권한 부여
+        if role == 'read':
+            node.viewers.add(user)
+        elif role == 'edit':
+            node.editors.add(user)
+        elif role == 'all':
+            node.managers.add(user)
+
+        return JsonResponse({'status': 'success', 'message': f'{user.username}님께 권한을 부여했습니다.'})
+    except (Node.DoesNotExist, User.DoesNotExist):
+        return JsonResponse({'status': 'error', 'message': '노드 또는 유저를 찾을 수 없습니다.'}, status=404)
+    
+
+@login_required
+def tree_management(request):
+    user = request.user
+    
+    # 일반 유저는 본인이 관리 권한('all')을 가진 노드만 가져옴
+    all_root_nodes = Node.objects.filter(parent=None).order_by('order')
+
+    # 유저가 관리 권한('all')을 가진 노드들만 선별
+    # (has_perm 메서드를 활용하여 리스트 컴프리헨션으로 필터링)
+    manageable_nodes = [
+        node for node in all_root_nodes 
+        if node.has_perm(user, perm_type='all')
+    ]
+
+    # 관리자는 모든 노드를 가져옴
+    if request.user.is_superuser:
+        manageable_nodes = Node.objects.all().order_by('order')
+
+    # 만약 일반 유저가 관리 권한이 하나도 없다면 안내 메시지와 함께 빈 화면을 보여줌
+    return render(request, 'wiki/tree_management.html', {
+        'nodes': manageable_nodes,
+        'is_empty': len(manageable_nodes) == 0
+    })
+#------ 지식트리 관리페이지 구현--------------------------    

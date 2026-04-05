@@ -1,0 +1,28 @@
+{% load wiki_tags %}
+
+<div class="node-group" style="margin-left: {% if node.parent %}15px{% else %}0{% endif %};">
+    <div class="nav-item tree-item {% if request.GET.node == node.id|stringformat:'s' %}active{% endif %}" data-id="{{ node.id }}">
+        {% with children=node|children_of:all_nodes %}
+            <i class="fa-solid {% if children %}fa-chevron-right{% else %}fa-folder-tree{% endif %}" 
+               style="font-size: 0.7rem; opacity: 0.5;"></i>
+            
+            <a href="{% url 'post_list' %}?node={{ node.id }}" style="text-decoration: none; color: inherit; flex: 1;">
+                <span class="node-name">{{ node.name }}</span>
+            </a>
+
+            <button class="edit-node-btn" title="수정" onclick="event.preventDefault(); editNode('{{ node.id }}', '{{ node.name }}')">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+        {% endwith %}
+    </div>
+
+    {% with children=node|children_of:all_nodes %}
+        {% if children %}
+            <div class="child-container" style="border-left: 1px solid #DFE1E6; margin-left: 7px;">
+                {% for child in children %}
+                    {% include "wiki/partial_node.html" with node=child all_nodes=all_nodes %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+</div>

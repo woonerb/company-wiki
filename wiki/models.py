@@ -1,8 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
-from django.db import models
-from django.utils.html import strip_tags  # 이 줄을 반드시 추가해야 합니다!
+from django.utils.html import strip_tags
 
 class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -10,98 +9,15 @@ class Tag(models.Model):
     def __str__(self):
         return self.name
 
-
-class Post(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField() 
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True) #이미지 업로드 기능 구현
-
-    CATEGORY_CHOICES = [
-        ('manual', '업무 매뉴얼'),
-        ('history', '과거 업무 처리'),
-        ('notice', '공지사항'),
-        ('weekly', '주간업무'),
-    ]
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='manual')
-
-    # 해시태그 ---------------------------------------------------------
-    tags = models.ManyToManyField(Tag, blank=True, related_name='posts')
-
-    def get_tags_list(self):
-        """저장된 태그 문자열을 리스트로 변환 (예: '사과,포도' -> ['사과', '포도'])"""
-        if self.tags:
-            # 쉼표나 공백으로 구분된 경우를 처리
-            return [tag.strip() for tag in self.tags.replace(',', ' ').split()]
-        return []
-    # 해시태그 ---------------------------------------------------------
-
-
-    # 좋아요 필드
-    likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_posts', blank=True)
-
-    def __str__(self):
-        return self.title
-    
-    def total_likes(self):
-            return self.likes.count()
-    
-    def get_clean_excerpt(self):
-            """HTML 태그 제거 및 &nbsp; 특수문자 처리 후 100자 요약"""
-            if not self.content:
-                return ""
-            # 1. 모든 HTML 태그 제거
-            text = strip_tags(self.content)
-            # 2. &nbsp;를 일반 공백으로 치환하고 앞뒤 공백 제거
-            text = text.replace('&nbsp;', ' ').strip()
-            # 3. 100자까지 자르고 넘치면 ... 붙이기
-            if len(text) > 100:
-                return text[:100] + "..."
-            return text
-
-
-class PostImage(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images', null=True, blank=True)
-    image = models.ImageField(upload_to='wiki/post_images/%Y/%m/%d/')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-
-class Comment(models.Model):
-    post = models.ForeignKey('Post', on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['created_at'] # 오래된 댓글이 위로 (대화 흐름 순)
-
-    def __str__(self):
-        return f'{self.author}님의 댓글'
-    
-
-class KnowledgeNode(models.Model):
+class Node(models.Model):
     name = models.CharField(max_length=100)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
-    order = models.PositiveIntegerField(default=0)  # 드래그 앤 드롭 순서 저장
-
-    def has_user_permission(self, user, required_level):
-        """
-        재귀적으로 부모 노드를 탐색하며 사용자의 권한을 확인합니다.
-        """
-        if user.is_superuser:
-            return True
-
-        # 1. 현재 노드에 직접 할당된 권한 확인
-        if NodePermission.objects.filter(user=user, node=self, permission_level=required_level).exists():
-            return True
-        
-        # 2. 부모 노드가 있다면 부모의 권한을 확인 (재귀 호출)
-        if self.parent:
-            return self.parent.has_user_permission(user, required_level)
-            
-        return False
+    order = models.PositiveIntegerField(default=0)
+    
+    # 권한 종류별 유저 매핑 (ManyToMany 방식 유지)
+    viewers = models.ManyToManyField(User, related_name='viewable_nodes', blank=True)
+    editors = models.ManyToManyField(User, related_name='editable_nodes', blank=True)
+    managers = models.ManyToManyField(User, related_name='manageable_nodes', blank=True)
 
     class Meta:
         ordering = ['order']
@@ -109,14 +25,96 @@ class KnowledgeNode(models.Model):
     def __str__(self):
         return self.name
 
+    def has_perm(self, user, perm_type='read'):
+        """재귀적으로 부모 노드를 탐색하며 사용자의 권한을 확인합니다."""
+        if user.is_superuser:
+            return True
+        
+        # 1. 현재 노드에 직접 부여된 권한 확인
+        if perm_type == 'read':
+            if self.viewers.filter(id=user.id).exists() or \
+               self.editors.filter(id=user.id).exists() or \
+               self.managers.filter(id=user.id).exists():
+                return True
+        elif perm_type == 'edit':
+            if self.editors.filter(id=user.id).exists() or \
+               self.managers.filter(id=user.id).exists():
+                return True
+        elif perm_type == 'all':
+            if self.managers.filter(id=user.id).exists():
+                return True
+
+        # 2. 부모 노드가 있다면 부모의 권한을 상속받아 확인
+        if self.parent:
+            return self.parent.has_perm(user, perm_type)
+            
+        return False
+    
+    def save(self, *args, **kwargs):
+            # 1. 저장 전 수행하고 싶은 로직 (예: 부모가 자기 자신인지 검증)
+            if self.parent and self.parent.id == self.id:
+                self.parent = None
+                
+            # 2. [필수] 실제 DB에 저장하는 명령 (이게 빠지면 저장이 안 됩니다!)
+            super().save(*args, **kwargs)
+            
+            # 3. 저장 후 수행하고 싶은 로직 (필요할 때만 작성)
+            # 예: 캐시 비우기 등    
+
+class Post(models.Model):
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='posts', null=True, blank=True)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True)
+    
+    # 기존 CharField 카테고리 (유지할 경우)
+    CATEGORY_CHOICES = [
+        ('manual', '업무 매뉴얼'),
+        ('history', '과거 업무 처리'),
+        ('notice', '공지사항'),
+        ('weekly', '주간업무'),
+    ]
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='manual')
+    tags = models.ManyToManyField(Tag, blank=True, related_name='posts')
+    likes = models.ManyToManyField(User, related_name='liked_posts', blank=True)
+
+    def __str__(self):
+        return self.title
+
+    def total_likes(self):
+        return self.likes.count()
+
+    def get_clean_excerpt(self):
+        if not self.content: return ""
+        text = strip_tags(self.content)
+        text = text.replace('&nbsp;', ' ').strip()
+        return (text[:100] + "...") if len(text) > 100 else text
+
+class PostImage(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images', null=True, blank=True)
+    image = models.ImageField(upload_to='wiki/post_images/%Y/%m/%d/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Comment(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+# 만약 별도의 권한 테이블이 필요하다면 유지 (ManyToMany와 병행 가능)
 class NodePermission(models.Model):
     PERMISSION_CHOICES = [
         ('read', '읽기'),
         ('edit', '수정/관리'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    node = models.ForeignKey(KnowledgeNode, on_delete=models.CASCADE)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE)
     permission_level = models.CharField(max_length=10, choices=PERMISSION_CHOICES)
 
     class Meta:
-        unique_together = ('user', 'node') # 중복 권한 방지    
+        unique_together = ('user', 'node')

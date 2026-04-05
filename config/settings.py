@@ -108,6 +108,9 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'wiki.context_processors.sidebar_nodes',
             ],
+            'libraries': {
+                'wiki_tags': 'wiki.templatetags.wiki_tags',
+            },
         },
     },
 ]
