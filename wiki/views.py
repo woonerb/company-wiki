@@ -10,6 +10,8 @@ from soynlp.noun import NewsNounExtractor # 해쉬태그 추출기
 from django.http import JsonResponse
 import json
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 
 @login_required
 def post_create(request):
@@ -147,3 +149,16 @@ def post_detail(request, pk):
 
     return render(request, 'wiki/post_detail.html', {'post': post})
 # --- 댓글 기능 구현 ---        
+
+
+# --- 좋아요 기능 구현 ---        
+
+def post_like(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+    if post.likes.filter(id=request.user.id).exists():
+        post.likes.remove(request.user) # 이미 눌렀다면 취소
+    else:
+        post.likes.add(request.user) # 안 눌렀다면 추가
+    
+    return HttpResponseRedirect(reverse('post_detail', args=[str(pk)]))
+# --- 좋아요 기능 구현 ---        

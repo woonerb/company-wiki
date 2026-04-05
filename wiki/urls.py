@@ -7,4 +7,5 @@ urlpatterns = [
     path('post/<int:pk>/', views.post_detail, name='post_detail'),
     path('upload-image/', views.image_upload, name='image_upload'),
     path('suggest-tags/', views.suggest_tags, name='suggest_tags'),
+    path('post/<int:pk>/like/', views.post_like, name='post_like'),
 ]

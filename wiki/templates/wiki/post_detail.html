@@ -3,6 +3,22 @@
 
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
+<style>
+    .like-btn {
+        border: 1px solid #DFE1E6;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    .like-btn.active { background: #EAE6FF; color: #403294; }
+    .like-btn.inactive { background: #F4F5F7; color: #42526E; }
+</style>
+
 <article class="wiki-post">
     <header class="post-header" style="margin-bottom: 40px; border-bottom: 1px solid #DFE1E6; padding-bottom: 30px;">
         <div class="breadcrumb" style="font-size: 0.85rem; color: #6B778C; margin-bottom: 15px;">
@@ -42,6 +58,23 @@
     </div>
     {% endif %}
 
+    <div class="like-section" style="margin: 30px 0; display: flex; align-items: center; gap: 15px;">
+        {% if user.is_authenticated %}
+        <form action="{% url 'post_like' post.pk %}" method="POST">
+            {% csrf_token %}
+            <button type="submit" class="like-btn {% if user in post.likes.all %}active{% else %}inactive{% endif %}">
+                <i class="fa-{% if user in post.likes.all %}solid{% else %}regular{% endif %} fa-thumbs-up"></i>
+                {% if user in post.likes.all %}추천 취소{% else %}이 문서 추천하기{% endif %}
+            </button>
+        </form>
+        {% endif %}
+
+        <div style="font-size: 0.9rem; color: #6B778C;">
+            <i class="fa-solid fa-heart" style="color: #FF5630; margin-right: 4px;"></i>
+            <strong>{{ post.total_likes }}명</strong>이 이 지식을 추천합니다.
+        </div>
+    </div>
+
     <section class="comment-section" style="margin-top: 80px; border-top: 1px solid #DFE1E6; padding-top: 40px;">
         <h3 style="font-size: 1.3rem; color: #172B4D; margin-bottom: 30px;">
             댓글 <span style="color: #6B778C; font-weight: normal; margin-left: 5px;">{{ post.comments.count }}</span>
@@ -56,7 +89,7 @@
             <div style="flex: 1;">
                 <textarea name="content" placeholder="의견을 남겨주세요..." required 
                     style="width: 100%; border: 1px solid #DFE1E6; border-radius: 4px; padding: 12px; font-family: inherit; resize: vertical; min-height: 90px; margin-bottom: 10px; outline-color: #4C9AFF;"></textarea>
-                <button type="submit" style="background: #0052CC; color: white; border: none; padding: 10px 20px; border-radius: 3px; font-weight: 600; cursor: pointer; float: right; transition: 0.2s;" onmouseover="this.style.background='#0065FF'" onmouseout="this.style.background='#0052CC'">
+                <button type="submit" style="background: #0052CC; color: white; border: none; padding: 10px 20px; border-radius: 3px; font-weight: 600; cursor: pointer; float: right;">
                     댓글 등록
                 </button>
             </div>
@@ -79,24 +112,19 @@
                         <span style="font-size: 0.8rem; color: #6B778C; margin-left: 10px;">{{ comment.created_at|date:"Y.m.d H:i" }}</span>
                     </div>
                     <div style="font-size: 1rem; color: #253858; line-height: 1.6; white-space: pre-wrap;">{{ comment.content }}</div>
-                    
-                    <div style="margin-top: 10px; display: flex; gap: 15px;">
-                        <button style="background: none; border: none; color: #6B778C; font-size: 0.8rem; cursor: pointer; padding: 0; font-weight: 500;">좋아요</button>
-                        <button style="background: none; border: none; color: #6B778C; font-size: 0.8rem; cursor: pointer; padding: 0; font-weight: 500;">답글</button>
-                    </div>
                 </div>
             </div>
             {% empty %}
             <div style="text-align: center; padding: 40px 0; color: #C1C7D0;">
                 <i class="fa-regular fa-comments" style="font-size: 2.5rem; margin-bottom: 15px; display: block;"></i>
-                <p style="font-size: 0.95rem;">아직 등록된 댓글이 없습니다.</p>
+                <p>아직 등록된 댓글이 없습니다.</p>
             </div>
             {% endfor %}
         </div>
     </section>
 
     <div style="margin-top: 60px; text-align: right;">
-        <a href="{% url 'post_list' %}" style="text-decoration: none; color: #6B778C; font-size: 0.9rem; font-weight: 600; padding: 10px 20px; border: 1px solid #DFE1E6; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='#F4F5F7'" onmouseout="this.style.background='white'">
+        <a href="{% url 'post_list' %}" style="text-decoration: none; color: #6B778C; font-size: 0.9rem; font-weight: 600; padding: 10px 20px; border: 1px solid #DFE1E6; border-radius: 4px;">
             <i class="fa-solid fa-arrow-left"></i> 목록으로
         </a>
     </div>
