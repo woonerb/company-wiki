@@ -23,7 +23,16 @@
         .navbar { background-color: var(--nav-bg); height: 50px; display: flex; align-items: center; padding: 0 20px; color: white; position: sticky; top: 0; z-index: 1001; }
         .navbar-brand { color: white; text-decoration: none; font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
         
-        /* 전체 레이아웃 (사이드바 + 본문) */
+        /* 로그인/로그아웃 섹션 */
+        .nav-auth-group { margin-left: auto; display: flex; gap: 15px; align-items: center; }
+        .nav-auth-link { color: white; text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: opacity 0.2s; display: flex; align-items: center; gap: 5px; }
+        .nav-auth-link:hover { opacity: 0.8; }
+        
+        /* 로그아웃 전용 버튼 (폼 내부 버튼) */
+        .btn-logout { background: none; border: 1px solid rgba(255,255,255,0.4); color: white; padding: 4px 10px; border-radius: 3px; font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
+        .btn-logout:hover { background: rgba(255,255,255,0.1); border-color: white; }
+
+        /* 전체 레이아웃 */
         .app-container { display: flex; flex: 1; overflow: hidden; }
 
         /* 왼쪽 사이드바 */
@@ -39,7 +48,6 @@
         .nav-item.active { background: #DEEBFF; color: var(--primary-blue); font-weight: 600; }
         .nav-item i { width: 16px; text-align: center; font-size: 0.85rem; }
 
-        /* 트리 구조 (카테고리) */
         .tree-item { padding-left: 25px; font-size: 0.85rem; }
 
         /* 오른쪽 메인 컨텐츠 */
@@ -48,25 +56,36 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* 검색창 (상단바 배치) */
+        /* 검색창 */
         .search-box { margin-left: 30px; flex: 1; max-width: 300px; position: relative; }
-        .search-box input { width: 100%; background: rgba(255,255,255,0.15); border: none; border-radius: 4px; padding: 5px 10px 5px 30px; color: white; font-size: 0.85rem; }
+        .search-box input { width: 100%; background: rgba(255,255,255,0.15); border: none; border-radius: 4px; padding: 5px 10px 5px 30px; color: white; font-size: 0.85rem; outline: none; }
         .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.5; }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <a href="{% url 'post_list' %}" class="navbar-brand"><i class="fa-solid fa-layer-group"></i> WIKI</a>
+        <a href="{% url 'post_list' %}" class="navbar-brand"><i class="fa-solid fa-layer-group"></i> WIKI Workspace</a>
+        
         <div class="search-box">
             <form action="{% url 'post_list' %}" method="GET">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" name="q" placeholder="빠른 검색..." value="{{ search_query|default:'' }}">
+                <input type="text" name="q" placeholder="지식 검색..." value="{{ search_query|default:'' }}">
             </form>
         </div>
-        <div style="margin-left: auto; display: flex; gap: 15px; align-items: center;">
-            <a href="{% url 'post_create' %}" style="color: white; text-decoration: none;"><i class="fa-solid fa-circle-plus"></i> 생성</a>
+
+        <div class="nav-auth-group">
             {% if user.is_authenticated %}
-                <a href="#" style="color: white; text-decoration: none; font-size: 0.85rem;"><i class="fa-regular fa-user"></i> {{ user.username }}</a>
+                <a href="{% url 'post_new' %}" class="nav-auth-link"><i class="fa-solid fa-circle-plus"></i> 생성</a>
+                <span class="nav-auth-link" style="cursor: default; opacity: 0.9;">
+                    <i class="fa-regular fa-user"></i> {{ user.username }}님
+                </span>
+                
+                <form action="{% url 'logout' %}" method="POST" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-logout">로그아웃</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="nav-auth-link">로그인</a>
             {% endif %}
         </div>
     </nav>
@@ -85,10 +104,10 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-title">지식 트리</div>
-                <a href="{% url 'post_list' %}?category=it" class="nav-item tree-item">IT / 개발</a>
-                <a href="{% url 'post_list' %}?category=hr" class="nav-item tree-item">인사 / 복지</a>
+                <a href="{% url 'post_list' %}?category=tech" class="nav-item tree-item">IT / 개발</a>
+                <a href="{% url 'post_list' %}?category=culture" class="nav-item tree-item">인사 / 복지</a>
                 <a href="{% url 'post_list' %}?category=notice" class="nav-item tree-item">공지사항</a>
-                </div>
+            </div>
         </aside>
 
         <main class="main-content">

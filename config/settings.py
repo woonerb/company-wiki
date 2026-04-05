@@ -20,9 +20,13 @@ DEBUG = True
 # ngrok 사용을 위해 허용
 ALLOWED_HOSTS = [
     '.ngrok-free.app', 
+    '.ngrok-free.dev',
     'localhost', 
     '127.0.0.1' 
     ]
+
+# ngrok을 통한 모든 요청을 안전하다고 판단함
+CSRF_TRUSTED_ORIGINS = ['https://*.ngrok-free.app','https://*.ngrok-free.dev',]
 #######################################################################################
                                  
 
@@ -153,3 +157,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+LOGIN_URL = 'login'               # 로그인이 안 된 사람이 가는 곳
+LOGIN_REDIRECT_URL = 'post_list'  # 로그인에 "성공"한 사람이 가는 곳 (중요!)
+LOGOUT_REDIRECT_URL = 'login'     # 로그아웃한 사람이 가는 곳
