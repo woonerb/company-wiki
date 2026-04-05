@@ -232,3 +232,26 @@ def comment_delete(request, pk):
         comment.delete()
     return redirect('post_detail', pk=post_pk)
 # --- 댓글 삭제 기능 구현 ---  
+
+
+# --- 글 복제 기능 구현 ---  
+@login_required
+def post_copy(request, pk):
+    parent_post = get_object_or_404(Post, pk=pk)
+    
+    if request.method == "POST":
+        new_category = request.POST.get('category')
+        
+        # 새로운 Post 객체 생성 (기존 데이터 복사)
+        new_post = Post.objects.create(
+            title = f"[복사본] {parent_post.title}",
+            content = parent_post.content,  # 본문 그대로 복사
+            category = new_category,        # 새로 선택한 카테고리
+            author = request.user           # 복사 버튼을 누른 사람이 새 작성자
+        )
+        # 복사된 새 글의 상세 페이지로 이동
+        return redirect('post_detail', pk=new_post.pk)
+
+    # GET 요청 시 카테고리 선택 페이지(또는 폼) 보여주기
+    return render(request, 'wiki/post_copy_form.html', {'post': parent_post})
+# --- 글 복제 기능 구현 ---  

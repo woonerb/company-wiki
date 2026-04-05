@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="wiki-container" style="max-width: 600px; margin: 50px auto; padding: 30px; background: white; border: 1px solid #DFE1E6; border-radius: 8px;">
+    <h2 style="font-size: 1.5rem; color: #172B4D; margin-bottom: 15px;">지식 복제하기</h2>
+    <p style="color: #6B778C; margin-bottom: 30px;">"{{ post.title }}" 문서의 내용을 복사하여 새로운 문서를 만듭니다.</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <div style="margin-bottom: 25px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #42526E;">새 글을 저장할 카테고리 선택</label>
+            <select name="category" required style="width: 100%; padding: 12px; border: 1px solid #DFE1E6; border-radius: 4px; font-size: 1rem;">
+                <option value="tech" {% if post.category == 'tech' %}selected{% endif %}>기술(Tech)</option>
+                <option value="culture" {% if post.category == 'culture' %}selected{% endif %}>문화(Culture)</option>
+                <option value="notice" {% if post.category == 'notice' %}selected{% endif %}>공지(Notice)</option>
+            </select>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <a href="{% url 'post_detail' post.pk %}" style="text-decoration: none; padding: 10px 20px; background: #EBECF0; color: #42526E; border-radius: 3px; font-weight: 600;">취소</a>
+            <button type="submit" style="background: #0052CC; color: white; border: none; padding: 10px 25px; border-radius: 3px; font-weight: 600; cursor: pointer;">복사본 생성</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

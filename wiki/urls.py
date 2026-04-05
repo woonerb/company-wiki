@@ -14,4 +14,5 @@ urlpatterns = [
     path('post/<int:pk>/delete/', views.post_delete, name='post_delete'), # 글 삭제
     path('comment/<int:pk>/edit/', views.comment_edit, name='comment_edit'), # 댓글 수정 (pk는 게시글의 고유 번호)
     path('comment/<int:pk>/delete/', views.comment_delete, name='comment_delete'), # 댓글 삭제 (댓글의 pk를 사용)
+    path('post/<int:pk>/copy/', views.post_copy, name='post_copy'),  #글 복제 (pk는 게시글의 고유 번호)
 ]
