@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="wiki-container" style="max-width: 800px; margin: 40px auto; padding: 30px; background: white; border: 1px solid #DFE1E6; border-radius: 8px;">
+    <h2 style="font-size: 1.5rem; color: #172B4D; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+        <i class="fa-solid fa-comment-dots" style="color: #0052CC;"></i> 댓글 수정하기
+    </h2>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 0.9rem; font-weight: 600; color: #6B778C; margin-bottom: 10px;">내용</label>
+            <textarea name="content" required 
+                style="width: 100%; min-height: 150px; border: 1px solid #DFE1E6; border-radius: 4px; padding: 15px; font-family: inherit; font-size: 1rem; outline-color: #4C9AFF;">{{ comment.content }}</textarea>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <a href="{% url 'post_detail' comment.post.pk %}" 
+               style="text-decoration: none; padding: 10px 20px; color: #42526E; background: #EBECF0; border-radius: 3px; font-weight: 600; font-size: 0.9rem;">취소</a>
+            <button type="submit" 
+                style="background: #0052CC; color: white; border: none; padding: 10px 25px; border-radius: 3px; font-weight: 600; font-size: 0.9rem; cursor: pointer;">저장하기</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

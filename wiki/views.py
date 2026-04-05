@@ -10,7 +10,7 @@ from soynlp.noun import NewsNounExtractor # 해쉬태그 추출기
 from django.http import JsonResponse
 import json
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponseForbidden
 from django.urls import reverse
 
 @login_required
@@ -133,6 +133,57 @@ def post_list(request):
     })
 # --- 검색 기능 구현 ---        
 
+
+# --- 좋아요 기능 구현 ---        
+def post_like(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+    if post.likes.filter(id=request.user.id).exists():
+        post.likes.remove(request.user) # 이미 눌렀다면 취소
+    else:
+        post.likes.add(request.user) # 안 눌렀다면 추가
+    
+    return HttpResponseRedirect(reverse('post_detail', args=[str(pk)]))
+# --- 좋아요 기능 구현 ---        
+
+
+# --- 글 수정 기능 구현 ---        
+@login_required  # 1. 로그인한 사용자만 접근 가능
+def post_edit(request, pk):
+    # 수정할 글 객체 가져오기
+    post = get_object_or_404(Post, pk=pk)
+    
+    # 2. 작성자 본인이 아니면 403 Forbidden 에러 반환
+    if post.author != request.user:
+        return HttpResponseForbidden("본인의 글만 수정할 수 있습니다.")
+
+    if request.method == "POST":
+        # 3. 실제 DB 저장 로직 (POST 방식일 때만 수행)
+        post.title = request.POST.get('title')
+        post.content = request.POST.get('content')
+        post.category = request.POST.get('category') # 카테고리도 있다면 추가
+        post.save()
+        return redirect('post_detail', pk=post.pk)
+
+    # GET 방식일 때는 기존 내용이 채워진 수정 페이지를 보여줌
+    return render(request, 'wiki/post_form.html', {'post': post})
+# --- 글 수정 기능 구현 ---    
+
+
+
+# --- 글 삭제 기능 구현 ---    
+@login_required
+def post_delete(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+    if post.author != request.user:
+        return HttpResponseForbidden("본인의 글만 삭제할 수 있습니다.")
+    
+    if request.method == "POST":
+        post.delete()
+        return redirect('post_list')
+    return redirect('post_detail', pk=pk)
+# --- 글 삭제 기능 구현 ---    
+
+
 # --- 댓글 기능 구현 ---        
 def post_detail(request, pk):
     post = get_object_or_404(Post, pk=pk)
@@ -148,17 +199,36 @@ def post_detail(request, pk):
             return redirect('post_detail', pk=post.pk)
 
     return render(request, 'wiki/post_detail.html', {'post': post})
-# --- 댓글 기능 구현 ---        
+# --- 댓글 기능 구현 ---   
 
+# --- 댓글 수정 기능 구현 ---   
+@login_required
+def comment_edit(request, pk):
+    comment = get_object_or_404(Comment, pk=pk)
+    if comment.author != request.user:
+        return HttpResponseForbidden("본인의 댓글만 수정할 수 있습니다.")
 
-# --- 좋아요 기능 구현 ---        
-
-def post_like(request, pk):
-    post = get_object_or_404(Post, pk=pk)
-    if post.likes.filter(id=request.user.id).exists():
-        post.likes.remove(request.user) # 이미 눌렀다면 취소
-    else:
-        post.likes.add(request.user) # 안 눌렀다면 추가
+    if request.method == "POST":
+        comment.content = request.POST.get('content')
+        comment.save()
+        return redirect('post_detail', pk=comment.post.pk)
     
-    return HttpResponseRedirect(reverse('post_detail', args=[str(pk)]))
-# --- 좋아요 기능 구현 ---        
+    # 댓글 수정은 별도 페이지보다 상세페이지에서 처리하는 경우가 많지만, 
+    # 로직 분리를 위해 수정 폼으로 보내거나 템플릿에서 분기 처리합니다.
+    return render(request, 'wiki/comment_form.html', {'comment': comment})
+# --- 댓글 수정 기능 구현 ---  
+
+
+
+# --- 댓글 삭제 기능 구현 ---  
+@login_required
+def comment_delete(request, pk):
+    comment = get_object_or_404(Comment, pk=pk)
+    post_pk = comment.post.pk
+    if comment.author != request.user:
+        return HttpResponseForbidden("본인의 댓글만 삭제할 수 있습니다.")
+    
+    if request.method == "POST":
+        comment.delete()
+    return redirect('post_detail', pk=post_pk)
+# --- 댓글 삭제 기능 구현 ---  

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<div class="wiki-container" style="max-width: 1000px; margin: 40px auto; padding: 20px;">
+    <h2 style="font-size: 1.8rem; color: #172B4D; margin-bottom: 30px;">
+        {% if post.pk %}지식 수정하기{% else %}새 지식 작성하기{% endif %}
+    </h2>
+
+    <form method="POST" id="post-form">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 25px;">
+            <input type="text" name="title" placeholder="제목을 입력하세요" value="{{ post.title|default:'' }}" required
+                style="width: 100%; font-size: 2rem; border: none; border-bottom: 2px solid #DFE1E6; padding: 10px 0; outline: none; font-weight: 700; color: #172B4D;">
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <select name="category" style="padding: 8px 12px; border: 1px solid #DFE1E6; border-radius: 4px; color: #42526E;">
+                <option value="tech" {% if post.category == 'tech' %}selected{% endif %}>기술(Tech)</option>
+                <option value="culture" {% if post.category == 'culture' %}selected{% endif %}>문화(Culture)</option>
+                <option value="notice" {% if post.category == 'notice' %}selected{% endif %}>공지(Notice)</option>
+            </select>
+        </div>
+
+        <div id="editor" style="height: 400px; margin-bottom: 20px; background: white; font-size: 1.1rem;">
+            {{ post.content|safe }}
+        </div>
+        
+        <input type="hidden" name="content" id="content-input">
+
+        <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px;">
+            <a href="javascript:history.back()" style="text-decoration: none; padding: 10px 25px; color: #42526E; background: #EBECF0; border-radius: 3px; font-weight: 600;">취소</a>
+            <button type="submit" style="background: #0052CC; color: white; border: none; padding: 10px 30px; border-radius: 3px; font-weight: 600; cursor: pointer;">저장하기</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Quill 에디터 초기화
+    var quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+            ]
+        }
+    });
+
+    // 폼 전송 시 Quill의 내용을 input에 담기
+    var form = document.getElementById('post-form');
+    form.onsubmit = function() {
+        var content = document.querySelector('input[name=content]');
+        content.value = quill.root.innerHTML;
+    };
+</script>
+
+{% endblock %}
