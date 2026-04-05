@@ -2,20 +2,22 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.db import models
+from django.utils.html import strip_tags  # 이 줄을 반드시 추가해야 합니다!
+
+class Tag(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
 
 class Post(models.Model):
     title = models.CharField(max_length=200)
-    # ProseMirror는 구조화된 JSON이나 HTML을 뱉어냅니다. 
-    # 여기서는 HTML 형태로 저장한다고 가정합니다.
     content = models.TextField() 
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    ######이미지 업로드 기능 구현###############################################################
-    # 이미지 업로드는 Tiptap 에디터 내부에 삽입하는 방식이 더 직관적이지만, 
-    # 우선 별도 첨부 기능을 추가합니다.
-    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True)
-    #########################################################################################
+    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True) #이미지 업로드 기능 구현
 
     CATEGORY_CHOICES = [
         ('manual', '업무 매뉴얼'),
@@ -24,7 +26,18 @@ class Post(models.Model):
         ('weekly', '주간업무'),
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='manual')
-    tags = models.CharField(max_length=255, blank=True) # 해시태그 저장용 (예: #복합기 #수리)
+
+    # 해시태그 ---------------------------------------------------------
+    tags = models.ManyToManyField(Tag, blank=True, related_name='posts')
+
+    def get_tags_list(self):
+        """저장된 태그 문자열을 리스트로 변환 (예: '사과,포도' -> ['사과', '포도'])"""
+        if self.tags:
+            # 쉼표나 공백으로 구분된 경우를 처리
+            return [tag.strip() for tag in self.tags.replace(',', ' ').split()]
+        return []
+    # 해시태그 ---------------------------------------------------------
+
 
     # 좋아요 필드
     likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_posts', blank=True)
@@ -34,6 +47,19 @@ class Post(models.Model):
     
     def total_likes(self):
             return self.likes.count()
+    
+    def get_clean_excerpt(self):
+            """HTML 태그 제거 및 &nbsp; 특수문자 처리 후 100자 요약"""
+            if not self.content:
+                return ""
+            # 1. 모든 HTML 태그 제거
+            text = strip_tags(self.content)
+            # 2. &nbsp;를 일반 공백으로 치환하고 앞뒤 공백 제거
+            text = text.replace('&nbsp;', ' ').strip()
+            # 3. 100자까지 자르고 넘치면 ... 붙이기
+            if len(text) > 100:
+                return text[:100] + "..."
+            return text
 
 
 class PostImage(models.Model):

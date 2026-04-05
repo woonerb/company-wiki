@@ -73,6 +73,19 @@
         </div>
     </main>
 
+
+    <div class="tags">
+        {% if post.tags %}
+            <strong>태그:</strong>
+        {% for tag in post.tags.all %}
+            <span class="badge bg-primary">#{{ tag.name }}</span>
+        {% endfor %}
+        {% else %}
+            <span>등록된 태그가 없습니다.</span>
+        {% endif %}
+    </div>
+
+    
     <div class="post-utility-bar">
         <div class="utility-group">
             {% if user.is_authenticated %}

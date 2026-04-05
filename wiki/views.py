@@ -11,21 +11,43 @@ from soynlp.noun import NewsNounExtractor
 # --- [1] 게시글 목록 및 검색 ---
 @login_required
 def post_list(request):
-    search_query = request.GET.get('q', '')
+    # 1. 검색어 가져오기 및 공백 제거
+    search_query = request.GET.get('q', '').strip()
+    
+    # 2. 기본 쿼리셋 설정 (최신순 정렬)
     posts = Post.objects.all().order_by('-created_at')
 
+    # 3. 검색어가 있을 경우 필터링 수행
     if search_query:
+        # filter() 내부의 Q 객체들은 데이터베이스 레벨에서 효율적으로 처리됩니다.
         posts = posts.filter(
             Q(title__icontains=search_query) | 
             Q(content__icontains=search_query) |
-            Q(tags__icontains=search_query) |
+            Q(tags__name__icontains=search_query) | # ManyToMany 관계 검색
             Q(author__username__icontains=search_query)
-        ).distinct()
+        ).distinct() # 다대다 관계 검색 시 발생하는 중복 행 제거
 
+    # 4. 템플릿 렌더링
     return render(request, 'wiki/post_list.html', {
         'posts': posts,
         'search_query': search_query
     })
+
+#------특정 태그 클릭시 모아보기 기능----
+@login_required
+def tag_posts(request, tag_name):
+    # 해당 이름의 태그를 찾고 (없으면 404 에러)
+    tag = get_object_or_404(Tag, name=tag_name)
+    
+    # 해당 태그와 연결된 모든 게시글 가져오기 (0.001초 만에!)
+    posts = tag.posts.all().order_by('-created_at')
+    
+    return render(request, 'wiki/post_list.html', {
+        'posts': posts,
+        'tag_name': tag_name
+    })
+#------특정 태그 클릭시 모아보기 기능----
+
 
 # --- [2] 게시글 상세 및 댓글 등록 ---
 @login_required
@@ -59,10 +81,18 @@ def post_create(request):
                 title=title,
                 content=content,
                 category=category,
-                tags=tags,
                 attachment=attachment,
                 author=request.user
             )
+
+            # 태그 처리 로직 추가
+            tag_data = request.POST.get('tags', '') # 폼에서 '어음,주간업무' 형태로 올 경우
+            if tag_data:
+                tag_list = [t.strip() for t in tag_data.replace(',', ' ').split() if t.strip()]
+                for name in tag_list:
+                    tag, created = Tag.objects.get_or_create(name=name)
+                    post.tags.add(tag) # ManyToMany 관계에 추가
+                    
             return redirect('post_detail', pk=post.pk)
 
     return render(request, 'wiki/editor.html')
@@ -168,3 +198,5 @@ def suggest_tags(request):
         except Exception as e:
             return JsonResponse({'tags': []})
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+

@@ -20,7 +20,8 @@
             <div>
                 <span style="font-size: 0.7rem; color: #0052CC; font-weight: 700; background: #DEEBFF; padding: 2px 6px; border-radius: 3px;">{{ post.get_category_display }}</span>
                 <h3 style="margin: 8px 0 4px 0; font-size: 1.2rem; color: #172B4D;">{{ post.title }}</h3>
-                <p style="margin: 0; color: #6B778C; font-size: 0.9rem;">{{ post.content|striptags|truncatechars:100 }}</p>
+                
+                <p style="margin: 0; color: #6B778C; font-size: 0.9rem;">{{ post.get_clean_excerpt }}</p>
             </div>
             <div style="text-align: right; color: #888; font-size: 0.8rem;">
                 <b>{{ post.author }}</b><br>
@@ -36,4 +37,4 @@
     {% endfor %}
 </div>
 
-{% endblock %}c
+{% endblock %}

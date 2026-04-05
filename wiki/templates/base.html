@@ -75,7 +75,7 @@
 
         <div class="nav-auth-group">
             {% if user.is_authenticated %}
-                <a href="{% url 'post_new' %}" class="nav-auth-link"><i class="fa-solid fa-circle-plus"></i> 생성</a>
+                <a href="{% url 'post_new' %}" class="nav-auth-link"><i class="fa-solid fa-circle-plus"></i> 글쓰기</a>
                 <span class="nav-auth-link" style="cursor: default; opacity: 0.9;">
                     <i class="fa-regular fa-user"></i> {{ user.username }}님
                 </span>
