@@ -156,8 +156,9 @@
             <div class="sidebar-content">
                 <div class="sidebar-section">
                     <div class="sidebar-title">메뉴</div>
-                    <a href="{% url 'post_list' %}" class="nav-item {% if not request.GET.node %}active{% endif %}">
-                        <i class="fa-solid fa-clock-rotate-left"></i> 최근 문서
+                    <a href="{% url 'post_list' %}" class="nav-item {% if not request.GET.node and not request.GET.category and not search_query %}active{% endif %}">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>최근 업데이트 문서</span>
                     </a>
                     <a href="#" class="nav-item">
                         <i class="fa-solid fa-star"></i> 즐겨찾기

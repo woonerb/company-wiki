@@ -17,10 +17,9 @@ def post_list(request):
     search_query = request.GET.get('q', '').strip()
     node_id = request.GET.get('node') # 사이드바 노드 클릭 시 필터링용
     
-    posts = Post.objects.all().prefetch_related('tags').select_related('author').order_by('-created_at')
-    
-    # 사이드바 지식 트리를 위한 데이터 (모든 페이지 공통)
+    posts = Post.objects.all().prefetch_related('tags').select_related('author').order_by('-created_at')    
     nodes = Node.objects.all().order_by('order')
+    current_node = None 
 
     # 1. 검색어 필터링
     if search_query:
@@ -32,13 +31,19 @@ def post_list(request):
         ).distinct()
 
     # 2. 특정 노드(게시판) 필터링
-    if node_id:
-        posts = posts.filter(category=node_id) 
-
+    elif node_id:
+            try:
+                current_node = Node.objects.get(id=node_id)
+                posts = posts.filter(node=current_node)
+            except (Node.DoesNotExist, ValueError):
+                # 잘못된 ID가 들어올 경우를 대비해 안전하게 처리
+                current_node = None
+                
     return render(request, 'wiki/post_list.html', {
         'posts': posts,
+        'current_node': current_node,  # 이제 어떤 경로에서도 변수가 존재합니다!
+        'nodes': Node.objects.all(),
         'search_query': search_query,
-        'nodes': nodes,
     })
 
 # --- [2] 특정 태그 클릭 시 모아보기 ---
