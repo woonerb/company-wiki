@@ -62,23 +62,14 @@ class Node(models.Model):
             # 예: 캐시 비우기 등    
 
 class Post(models.Model):
-    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='posts', null=True, blank=True)
     title = models.CharField(max_length=200)
     content = models.TextField()
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
-    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True)
-    
-    # 기존 CharField 카테고리 (유지할 경우)
-    CATEGORY_CHOICES = [
-        ('manual', '업무 매뉴얼'),
-        ('history', '과거 업무 처리'),
-        ('notice', '공지사항'),
-        ('weekly', '주간업무'),
-    ]
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='manual')
+    attachment = models.FileField(upload_to='wiki/files/%Y/%m/%d/', blank=True, null=True)    
     tags = models.ManyToManyField(Tag, blank=True, related_name='posts')
     likes = models.ManyToManyField(User, related_name='liked_posts', blank=True)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='posts', null=True, blank=True)
 
     def __str__(self):
         return self.title

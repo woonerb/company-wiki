@@ -17,13 +17,19 @@
                 style="width: 100%; font-size: 2rem; border: none; border-bottom: 2px solid #DFE1E6; padding: 10px 0; outline: none; font-weight: 700; color: #172B4D;">
         </div>
 
-        <div style="margin-bottom: 25px;">
-            <select name="category" style="padding: 8px 12px; border: 1px solid #DFE1E6; border-radius: 4px; color: #42526E;">
-                <option value="tech" {% if post.category == 'tech' %}selected{% endif %}>기술(Tech)</option>
-                <option value="culture" {% if post.category == 'culture' %}selected{% endif %}>문화(Culture)</option>
-                <option value="notice" {% if post.category == 'notice' %}selected{% endif %}>공지(Notice)</option>
+        
+        <div class="form-group">
+            <label for="node">지식 트리(게시판) 선택</label>
+            <select name="node" id="node" class="form-control">
+                <option value="">--- 게시판 선택 ---</option>
+                {% for node in nodes %}
+                    <option value="{{ node.id }}" {% if post.node.id == node.id %}selected{% endif %}>
+                        {{ node.name }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
+
 
         <div id="editor" style="height: 400px; margin-bottom: 20px; background: white; font-size: 1.1rem;">
             {{ post.content|safe }}

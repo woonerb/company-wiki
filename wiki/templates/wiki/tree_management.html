@@ -1,0 +1,204 @@
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{% extends "base.html" %}
+
+{% block content %}
+<div style="padding: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h1 style="font-size: 2rem; font-weight: 700; color: #172B4D; margin: 0;">
+            <i class="fa-solid fa-sitemap" style="margin-right: 15px; opacity: 0.5;"></i>
+            트리 및 권한 관리
+        </h1>
+        <button onclick="saveTreeStructure()" style="background: #0052CC; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#0747A6'" onmouseout="this.style.background='#0052CC'">
+            <i class="fa-solid fa-floppy-disk" style="margin-right: 8px;"></i> 구조 저장하기
+        </button>
+    </div>
+
+    <p style="color: #6B778C; margin-bottom: 30px;">
+        <i class="fa-solid fa-circle-info"></i> 문서를 드래그하여 다른 게시판으로 이동시키거나 순서를 변경할 수 있습니다.
+    </p>
+
+    <div class="tree-list" style="display: flex; flex-direction: column; gap: 20px;">
+
+        <div style="background: yellow; padding: 10px;">
+        현재 넘어온 노드 개수: {{ nodes|length }}
+        </div> 
+     
+        {% for node in nodes %}
+        <div class="draggable-group" data-id="{{ node.id }}" style="background: white; border: 1px solid #DFE1E6; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            
+            <div style="padding: 15px 20px; background: #FAFBFC; border-bottom: 1px solid #DFE1E6; display: flex; justify-content: space-between; align-items: center; border-radius: 8px 8px 0 0;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-folder-tree handle" style="cursor: move; color: #6B778C;"></i>
+                    <span style="font-weight: 700; color: #172B4D; font-size: 1.1rem;">{{ node.name }}</span>
+                    <button onclick="renameNode('{{ node.id }}', '{{ node.name }}')" style="background: none; border: none; color: #0052CC; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">이름 변경</button>
+                </div>
+                <button onclick="managePermissions('{{ node.id }}', '{{ node.name }}')" style="background: white; border: 1px solid #DFE1E6; padding: 5px 12px; border-radius: 4px; font-size: 0.85rem; cursor: pointer;">
+                    권한 설정
+                </button>
+            </div>
+
+            <div class="nested-list" style="min-height: 50px; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #ffffff;">
+                {% for post in node.posts.all %}
+                <div class="post-item" data-id="{{ post.id }}" data-type="post" style="padding: 12px 15px; background: white; border: 1px solid #EBECF0; border-radius: 6px; display: flex; align-items: center; gap: 12px; cursor: default;">
+                    <i class="fa-solid fa-grip-vertical handle" style="cursor: move; color: #C1C7D0;"></i>
+                    <i class="fa-regular fa-file-lines" style="color: #4C9AFF;"></i>
+                    <span style="font-size: 0.95rem; color: #172B4D;">{{ post.title }}</span>
+                </div>
+                {% empty %}
+                <div class="empty-msg" style="text-align: center; color: #A5ADBA; font-size: 0.9rem; padding: 20px;">
+                    이 게시판은 비어 있습니다. 문서를 여기로 끌어다 놓으세요.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* 드래그 중인 요소 스타일 */
+    .sortable-ghost {
+        opacity: 0.4;
+        background: #DEEBFF !important;
+        border: 2px dashed #0052CC !important;
+    }
+    .handle {
+        padding: 5px;
+        transition: 0.2s;
+    }
+    .handle:hover {
+        background: #F4F5F7;
+        border-radius: 4px;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% endblock %}
+
+<script>
+    // 1. 드래그 앤 드롭 활성화 (Sortable 설정 보강)
+    // {% if nodes or user.is_superuser %}
+    const nestedLists = document.querySelectorAll('.nested-list, .tree-list');
+    nestedLists.forEach(list => {
+        new Sortable(list, {
+            group: 'nested',
+            animation: 150,
+            fallbackOnBody: true,
+            swapThreshold: 0.65,
+            handle: '.handle',
+            ghostClass: 'sortable-ghost',
+            onEnd: function (evt) {
+                console.log('구조 변경됨');
+            }
+        });
+    });
+    {% endif %}
+
+    // 2. CSRF 토큰 헬퍼 함수
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 3. 트리 구조 데이터 수집 및 서버 저장 (핵심 수정 부분)
+    async function saveTreeStructure() {
+        const result = await Swal.fire({
+            title: '구조를 저장하시겠습니까?',
+            text: "문서의 소속 게시판 및 순서 변경사항이 저장됩니다.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0052CC',
+            confirmButtonText: '저장하기',
+            cancelButtonText: '취소'
+        });
+
+        if (result.isConfirmed) {
+            // 로딩 표시
+            Swal.fire({ title: '저장 중...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            const treeData = [];
+            
+            // 모든 노드(게시판) 그룹을 순회
+            document.querySelectorAll('.draggable-group').forEach((group, nodeIndex) => {
+                const nodeId = group.dataset.id;
+                
+                // 해당 노드 아래에 있는 포스트(문서)들을 찾음
+                const postItems = group.querySelectorAll('[data-type="post"]');
+                postItems.forEach((post, postIndex) => {
+                    treeData.push({
+                        post_id: post.dataset.id,
+                        target_node_id: nodeId, // 현재 포스트가 속한 부모 노드 ID
+                        order: postIndex        // 해당 노드 내에서의 순서
+                    });
+                });
+            });
+
+            try {
+                // views.py의 save_tree_api로 전송
+                const response = await fetch('/wiki/save-tree-api/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ tree_data: treeData })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    Swal.fire('완료', '트리 구조가 성공적으로 저장되었습니다.', 'success').then(() => {
+                        location.reload(); // 저장 후 실제 반영된 모습을 위해 새로고침
+                    });
+                } else {
+                    throw new Error(data.message || '저장 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                Swal.fire('오류', error.message, 'error');
+            }
+        }
+    }
+
+    // 4. 권한 관리 팝업 (기존 유지)
+    async function managePermissions(nodeId, nodeName) {
+        // ... (이전 코드와 동일하므로 생략) ...
+    }
+
+    // 5. 노드 이름 변경 (API 통신 추가)
+    async function renameNode(id, currentName) {
+        const { value: newName } = await Swal.fire({
+            title: '게시판 이름 변경',
+            input: 'text',
+            inputValue: currentName,
+            showCancelButton: true,
+            inputValidator: (value) => { if (!value) return '이름을 입력해야 합니다!'; }
+        });
+
+        if (newName && newName !== currentName) {
+            try {
+                const response = await fetch(`/api/node/${id}/rename/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ name: newName })
+                });
+                if (response.ok) {
+                    Swal.fire('변경됨', '이름이 변경되었습니다.', 'success').then(() => location.reload());
+                }
+            } catch (e) {
+                Swal.fire('오류', '이름 변경에 실패했습니다.', 'error');
+            }
+        }
+    }
+</script>

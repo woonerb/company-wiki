@@ -3,7 +3,6 @@ from . import views
 
 urlpatterns = [
     # 게시글 관련
-    path('', views.post_list, name='post_list'),
     path('write/', views.post_create, name='post_new'), 
     path('post/<int:pk>/', views.post_detail, name='post_detail'),
     path('post/<int:pk>/edit/', views.post_edit, name='post_edit'),
@@ -25,10 +24,12 @@ urlpatterns = [
     path('node/update-order/', views.update_node_order_api, name='update_node_order_api'),
 
     # 지식 트리 관리 페이지 구현
-    path('manage/tree/', views.tree_management, name='tree_management'),
     path('api/node/save-structure/', views.save_tree_api, name='save_tree_api'),
     path('api/node/permission/', views.update_node_permission, name='update_node_permission'),
 
     path('api/user/search/', views.user_search_api, name='user_search_api'),
     path('api/node/permission/add/', views.add_node_permission, name='add_node_permission'),
+    path('manage/tree/', views.tree_management, name='tree_management'),
+
+    path('', views.post_list, name='post_list'),
 ]

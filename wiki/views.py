@@ -14,35 +14,36 @@ from django.contrib.auth.models import User
 # --- [1] 게시글 목록 및 검색 ---
 @login_required
 def post_list(request):
-    search_query = request.GET.get('q', '').strip()
-    node_id = request.GET.get('node') # 사이드바 노드 클릭 시 필터링용
+    # 1. 파라미터 가져오기 (가장 흔한 파라미터명인 'q'와 'search_query' 둘 다 체크 가능)
+    search_query = request.GET.get('search_query', request.GET.get('q', '')).strip()
+    node_id = request.GET.get('node')
     
-    posts = Post.objects.all().prefetch_related('tags').select_related('author').order_by('-created_at')    
+    # 2. 기본 쿼리셋 (select_related로 node 정보까지 한 번에 가져옴)
+    posts = Post.objects.all().select_related('author', 'node').prefetch_related('tags').order_by('-created_at')
     nodes = Node.objects.all().order_by('order')
     current_node = None 
 
-    # 1. 검색어 필터링
+    # 3. 노드 필터링 (가장 확실한 방법인 node_id=node_id 사용)
+    if node_id and node_id.isdigit():
+        # 이 부분이 핵심입니다: 직접 node_id 필드와 비교하거나 객체를 가져옵니다.
+        try:
+            current_node = Node.objects.get(id=int(node_id))
+            # 필터링 시 객체를 직접 넣는 것이 가장 정확합니다.
+            posts = posts.filter(node=current_node)
+        except (Node.DoesNotExist, ValueError):
+            current_node = None
+
+    # 4. 검색 필터링 (노드 필터링이 된 상태에서 추가로 적용)
     if search_query:
         posts = posts.filter(
             Q(title__icontains=search_query) | 
-            Q(content__icontains=search_query) |
-            Q(tags__name__icontains=search_query) |
-            Q(author__username__icontains=search_query)
+            Q(content__icontains=search_query)
         ).distinct()
 
-    # 2. 특정 노드(게시판) 필터링
-    elif node_id:
-            try:
-                current_node = Node.objects.get(id=node_id)
-                posts = posts.filter(node=current_node)
-            except (Node.DoesNotExist, ValueError):
-                # 잘못된 ID가 들어올 경우를 대비해 안전하게 처리
-                current_node = None
-                
     return render(request, 'wiki/post_list.html', {
         'posts': posts,
-        'current_node': current_node,  # 이제 어떤 경로에서도 변수가 존재합니다!
-        'nodes': Node.objects.all(),
+        'current_node': current_node,
+        'nodes': nodes,
         'search_query': search_query,
     })
 
@@ -94,7 +95,7 @@ def post_create(request):
             post = Post.objects.create(
                 title=title,
                 content=content,
-                category=node_id,
+                node_id=node_id,
                 attachment=attachment,
                 author=request.user
             )
@@ -261,9 +262,15 @@ def update_node_order_api(request):
     
 #------ 지식트리 관리페이지 구현--------------------------    
 # 관리 페이지 렌더링
+@login_required
 def tree_management(request):
-    nodes = Node.objects.all() # 트리 구조에 맞는 쿼리셋
-    return render(request, 'tree_management.html', {'nodes': nodes})
+    # 다른 조건 없이 무조건 전체 노드를 가져옵니다.
+    all_nodes = Node.objects.all().order_by('order')
+
+    # 반드시 'nodes'라는 키값으로 넘겨줘야 템플릿의 {% for node in nodes %}가 작동합니다.
+    return render(request, 'wiki/tree_management.html', {
+        'nodes': all_nodes, 
+    })
 
 # 트리 구조 저장 API (드래그 앤 드롭 결과 저장)
 @login_required
@@ -287,6 +294,7 @@ def save_tree_api(request):
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
+#------ 지식트리 관리페이지 구현--------------------------    
 
 
 # 권한 부여 API
@@ -337,29 +345,3 @@ def add_node_permission(request):
         return JsonResponse({'status': 'success', 'message': f'{user.username}님께 권한을 부여했습니다.'})
     except (Node.DoesNotExist, User.DoesNotExist):
         return JsonResponse({'status': 'error', 'message': '노드 또는 유저를 찾을 수 없습니다.'}, status=404)
-    
-
-@login_required
-def tree_management(request):
-    user = request.user
-    
-    # 일반 유저는 본인이 관리 권한('all')을 가진 노드만 가져옴
-    all_root_nodes = Node.objects.filter(parent=None).order_by('order')
-
-    # 유저가 관리 권한('all')을 가진 노드들만 선별
-    # (has_perm 메서드를 활용하여 리스트 컴프리헨션으로 필터링)
-    manageable_nodes = [
-        node for node in all_root_nodes 
-        if node.has_perm(user, perm_type='all')
-    ]
-
-    # 관리자는 모든 노드를 가져옴
-    if request.user.is_superuser:
-        manageable_nodes = Node.objects.all().order_by('order')
-
-    # 만약 일반 유저가 관리 권한이 하나도 없다면 안내 메시지와 함께 빈 화면을 보여줌
-    return render(request, 'wiki/tree_management.html', {
-        'nodes': manageable_nodes,
-        'is_empty': len(manageable_nodes) == 0
-    })
-#------ 지식트리 관리페이지 구현--------------------------    
